@@ -116,8 +116,10 @@ export const usersApi = {
 };
 
 // Export all
-export default {
+const api = {
   auth: authApi,
   health: healthApi,
   users: usersApi,
 };
+
+export default api;

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Toaster } from "sonner";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Admin Panel - Management System",
-  description: "Enterprise Management System Admin Panel",
+  title: "Enterprise Admin Panel",
+  description: "Comprehensive enterprise management system",
 };
 
 export default function RootLayout({
@@ -24,11 +26,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>{children}</Providers>
+        <ErrorBoundary>
+          <Providers>
+            {children}
+            <Toaster position="top-right" richColors />
+          </Providers>
+        </ErrorBoundary>
       </body>
     </html>
   );
