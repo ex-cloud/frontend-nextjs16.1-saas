@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -31,10 +31,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2 } from "lucide-react";
 import { departmentSchema } from "@/lib/validations/hrm";
 import { useDepartments } from "@/hooks/use-departments";
-import type { Department, DepartmentInput } from "@/types/hrm";
+import { getAllUsersForAssignment } from "@/lib/api/hrm-assignments";
+import type { Department, DepartmentInput, User } from "@/types/hrm";
 import { z } from "zod";
 
 interface DepartmentFormProps {
@@ -53,8 +55,9 @@ export function DepartmentForm({
   isLoading = false,
 }: DepartmentFormProps) {
   const isEditMode = !!department;
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
 
-  // Fetch departments for parent selection
   const { data: departmentsData } = useDepartments({
     per_page: 100,
     is_active: true,
@@ -74,38 +77,86 @@ export function DepartmentForm({
     },
   });
 
-  // Reset form when department changes or dialog opens
+  // Combined effect: Fetch users and reset form when dialog opens
   useEffect(() => {
-    if (open) {
-      if (department) {
-        form.reset({
-          code: department.code,
-          name: department.name,
-          description: department.description || undefined,
-          parent_id: department.parent_id || undefined,
-          manager_id: department.manager_id || undefined,
-          budget_allocated:
-            department.budget_allocated !== null &&
-            department.budget_allocated !== undefined
-              ? Number(department.budget_allocated)
-              : undefined,
-          location: department.location || undefined,
-          is_active: department.is_active,
-        });
-      } else {
-        form.reset({
-          code: "",
-          name: "",
-          description: undefined,
-          parent_id: undefined,
-          manager_id: undefined,
-          budget_allocated: undefined,
-          location: undefined,
-          is_active: true,
-        });
-      }
+    // Early return and reset when dialog closes
+    if (!open) {
+      setAvailableUsers([]);
+      setLoadingUsers(true);
+      return;
     }
-  }, [department, open, form]);
+
+    let isMounted = true;
+    setLoadingUsers(true);
+
+    const fetchAndReset = async () => {
+      try {
+        console.log("[DepartmentForm] Fetching users...");
+        const users = await getAllUsersForAssignment();
+
+        if (!isMounted) return;
+
+        // Ensure current manager is in the list
+        let finalUsers = users;
+        if (department?.manager && department.manager_id) {
+          const managerExists = users.some(
+            (u) => u.id === department.manager_id
+          );
+          if (!managerExists) {
+            finalUsers = [department.manager as User, ...users];
+          }
+        }
+
+        setAvailableUsers(finalUsers);
+        console.log("[DepartmentForm] Users loaded:", finalUsers.length);
+
+        // Now reset the form AFTER users are available
+        if (department) {
+          console.log("[DepartmentForm] Resetting form with department data:", {
+            manager_id: department.manager_id,
+            parent_id: department.parent_id,
+          });
+          form.reset({
+            code: department.code,
+            name: department.name,
+            description: department.description || undefined,
+            parent_id: department.parent_id || undefined,
+            manager_id: department.manager_id || undefined,
+            budget_allocated:
+              department.budget_allocated !== null &&
+              department.budget_allocated !== undefined
+                ? Number(department.budget_allocated)
+                : undefined,
+            location: department.location || undefined,
+            is_active: department.is_active,
+          });
+        } else {
+          form.reset({
+            code: "",
+            name: "",
+            description: undefined,
+            parent_id: undefined,
+            manager_id: undefined,
+            budget_allocated: undefined,
+            location: undefined,
+            is_active: true,
+          });
+        }
+      } catch (err) {
+        console.error("[DepartmentForm] Failed to fetch users:", err);
+      } finally {
+        if (isMounted) {
+          setLoadingUsers(false);
+        }
+      }
+    };
+
+    fetchAndReset();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [open, department, form]);
 
   const handleSubmit = async (data: z.infer<typeof departmentSchema>) => {
     try {
@@ -292,28 +343,70 @@ export function DepartmentForm({
                     z.infer<typeof departmentSchema>,
                     "manager_id"
                   >;
-                }) => (
-                  <FormItem>
-                    <FormLabel>Department Manager</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="Manager User ID"
-                        {...field}
-                        value={field.value || ""}
-                        onChange={(e) =>
+                }) => {
+                  // Compute the correct value - only use field value when users are loaded
+                  const selectValue = loadingUsers
+                    ? undefined
+                    : field.value
+                    ? field.value.toString()
+                    : "none";
+
+                  return (
+                    <FormItem>
+                      <FormLabel>Department Manager</FormLabel>
+                      <Select
+                        key={`manager-select-${
+                          loadingUsers ? "loading" : "loaded"
+                        }-${availableUsers.length}-${field.value || "none"}`}
+                        onValueChange={(value) =>
                           field.onChange(
-                            e.target.value ? parseInt(e.target.value) : null
+                            value === "none" ? null : parseInt(value)
                           )
                         }
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      User ID of the department manager
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                        value={selectValue}
+                        disabled={loadingUsers}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                loadingUsers
+                                  ? "Loading users..."
+                                  : "Select a manager"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">No manager</SelectItem>
+                          {availableUsers.map((user) => (
+                            <SelectItem
+                              key={user.id}
+                              value={user.id.toString()}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src={user.avatar || ""} />
+                                  <AvatarFallback className="text-xs">
+                                    {user.name?.charAt(0) || "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{user.name}</span>
+                                <span className="text-muted-foreground text-xs">
+                                  ({user.email})
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Select a user to be the department manager
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             </div>
 

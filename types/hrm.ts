@@ -29,6 +29,10 @@ export interface User {
   join_date?: string | null;
   created_at: string;
   updated_at: string;
+  
+  // Relationships
+  position?: Position;
+  department?: Department;
 }
 
 // ============================================================================

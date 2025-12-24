@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -18,6 +19,7 @@ import { Table, Workflow } from "lucide-react";
 import type { Department, DepartmentInput } from "@/types/hrm";
 
 export default function DepartmentsPage() {
+  const router = useRouter();
   const [formDialog, setFormDialog] = useState<{
     open: boolean;
     department: Department | null;
@@ -34,6 +36,10 @@ export default function DepartmentsPage() {
   const restoreMutation = useRestoreDepartment();
 
   // Handlers
+  const handleView = (department: Department) => {
+    router.push(`/dashboard/hrm/departments/${department.id}`);
+  };
+
   const handleCreate = () => {
     setFormDialog({ open: true, department: null });
   };
@@ -120,6 +126,7 @@ export default function DepartmentsPage() {
                 <TabsContent value="table" className="mt-0">
                   <DepartmentTable
                     onCreate={handleCreate}
+                    onView={handleView}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onRestore={handleRestore}
