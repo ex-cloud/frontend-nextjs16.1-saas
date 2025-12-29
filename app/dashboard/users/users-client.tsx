@@ -35,10 +35,10 @@ interface UserFormSubmitData extends Record<string, unknown> {
 }
 
 interface UsersClientProps {
-  initialRoles: Role[];
+  initialRoles?: Role[];
 }
 
-export function UsersClient({ initialRoles }: UsersClientProps) {
+export function UsersClient({ initialRoles = [] }: UsersClientProps) {
   const [formDialog, setFormDialog] = useState<{
     open: boolean;
     user: User | null;

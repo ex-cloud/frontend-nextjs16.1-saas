@@ -21,7 +21,7 @@ interface UseDataTableOptions<TFilters extends BaseFilters> {
  */
 export function useDataTable<TFilters extends BaseFilters>({
   initialFilters,
-  debounceMs = 300,
+  debounceMs = 600,
 }: UseDataTableOptions<TFilters>) {
   const [filters, setFilters] = useState<TFilters>(initialFilters);
   const [searchValue, setSearchValue] = useState(initialFilters.search || "");
@@ -35,9 +35,10 @@ export function useDataTable<TFilters extends BaseFilters>({
   // Handle sorting change from TanStack Table
   // This avoids the "Cascading Renders" effect warning
   const handleSortingChange: OnChangeFn<SortingState> = (updater) => {
-    const nextSorting = typeof updater === "function" ? updater(sorting) : updater;
+    const nextSorting =
+      typeof updater === "function" ? updater(sorting) : updater;
     setSorting(nextSorting);
-    
+
     if (nextSorting.length > 0) {
       setFilters((prev) => ({
         ...prev,
@@ -54,7 +55,7 @@ export function useDataTable<TFilters extends BaseFilters>({
       setFilters((prev) => {
         const val = searchValue || undefined;
         if (prev.search === val) return prev;
-        
+
         return {
           ...prev,
           search: val,
@@ -74,7 +75,10 @@ export function useDataTable<TFilters extends BaseFilters>({
     setFilters((prev) => ({ ...prev, per_page, page: 1 }));
   };
 
-  const updateFilter = (key: keyof TFilters, value: TFilters[keyof TFilters] | "all") => {
+  const updateFilter = (
+    key: keyof TFilters,
+    value: TFilters[keyof TFilters] | "all"
+  ) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value === "all" ? undefined : value,

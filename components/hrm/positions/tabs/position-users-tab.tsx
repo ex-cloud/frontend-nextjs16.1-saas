@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { useDepartmentUsers, departmentKeys } from "@/hooks/use-departments";
+import { usePositionUsers, positionKeys } from "@/hooks/use-positions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, UserPlus, Mail, Search, Check, UserMinus } from "lucide-react";
 import {
@@ -43,18 +43,18 @@ import {
   hrmAssignmentApi,
   getAllUsersForAssignment,
 } from "@/lib/api/hrm-assignments";
-import type { User } from "@/types/hrm";
+import type { User, Position } from "@/types/hrm";
 
-interface DepartmentUsersTabProps {
-  departmentId: number;
+interface PositionUsersTabProps {
+  position: Position;
   onRefresh?: () => void;
 }
 
-export function DepartmentUsersTab({
-  departmentId,
+export function PositionUsersTab({
+  position,
   onRefresh,
-}: DepartmentUsersTabProps) {
-  const { data, isLoading, refetch } = useDepartmentUsers(departmentId, 1, 50);
+}: PositionUsersTabProps) {
+  const { data, isLoading, refetch } = usePositionUsers(position.id, 1, 50);
   const queryClient = useQueryClient();
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [unassignDialogOpen, setUnassignDialogOpen] = useState(false);
@@ -68,6 +68,13 @@ export function DepartmentUsersTab({
 
   // Fetch available users when dialog opens
   const handleOpenAssignDialog = async () => {
+    if (!position.department_id) {
+      toast.error(
+        "Cannot assign users: Position is not linked to a Department."
+      );
+      return;
+    }
+
     setSelectedUsers([]);
     setSearchQuery("");
     setAssignDialogOpen(true);
@@ -75,7 +82,7 @@ export function DepartmentUsersTab({
 
     try {
       const users = await getAllUsersForAssignment();
-      // Filter out users already in this department
+      // Filter out users already in this position
       const currentUserIds = (data?.data || []).map((u) => u.id);
       const available = users.filter((u) => !currentUserIds.includes(u.id));
       setAvailableUsers(available);
@@ -100,18 +107,18 @@ export function DepartmentUsersTab({
   };
 
   const handleAssignUsers = async () => {
-    if (selectedUsers.length === 0) return;
+    if (selectedUsers.length === 0 || !position.department_id) return;
 
     setIsAssigning(true);
     try {
       const response = await hrmAssignmentApi.bulkAssign({
         user_ids: selectedUsers,
-        department_id: departmentId,
-        reason: "Assigned via department detail page",
+        department_id: position.department_id,
+        position_id: position.id,
+        reason: "Assigned via position detail page",
       });
 
       // Handle response properly regarding success/failure counts
-      // Use explicit type casting matching backend response structure
       const result = response as unknown as {
         data?: {
           summary?: {
@@ -121,12 +128,12 @@ export function DepartmentUsersTab({
           errors?: Record<string, string>;
         };
       };
+
       const successCount = result?.data?.summary?.success || 0;
       const failedCount = result?.data?.summary?.failed || 0;
 
       if (successCount > 0) {
         if (failedCount > 0) {
-          // Show warning with specific first error if available
           const errorMsg = Object.values(
             result?.data?.errors || {}
           )[0] as string;
@@ -137,16 +144,19 @@ export function DepartmentUsersTab({
           );
         } else {
           toast.success(
-            `Successfully assigned ${successCount} user(s) to department`
+            `Successfully assigned ${successCount} user(s) to position`
           );
         }
 
         setAssignDialogOpen(false);
 
-        // Force invalidate queries to ensure fresh data
+        // Force invalidate queries
         await queryClient.invalidateQueries({
-          queryKey: departmentKeys.users(departmentId),
+          queryKey: positionKeys.users(position.id),
         });
+
+        // Also invalidate department users
+        // Note: We don't import departmentKeys here to avoid circular dep, but we can rely on general invalidation if needed
 
         refetch();
         onRefresh?.();
@@ -187,16 +197,16 @@ export function DepartmentUsersTab({
     setIsUnassigning(true);
     try {
       await hrmAssignmentApi.unassign(userToUnassign.id, {
-        reason: "Unassigned via department detail page",
+        reason: "Unassigned via position detail page",
       });
 
       toast.success(
-        `Successfully unassigned ${userToUnassign.name} from department`
+        `Successfully unassigned ${userToUnassign.name} from position`
       );
       setUnassignDialogOpen(false);
       setUserToUnassign(null);
       await queryClient.invalidateQueries({
-        queryKey: departmentKeys.users(departmentId),
+        queryKey: positionKeys.users(position.id),
       });
       refetch();
       onRefresh?.();
@@ -241,9 +251,19 @@ export function DepartmentUsersTab({
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Department Users ({users.length})
+            Position Users ({users.length})
           </CardTitle>
-          <Button size="sm" variant="outline" onClick={handleOpenAssignDialog}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleOpenAssignDialog}
+            disabled={!position.department_id}
+            title={
+              !position.department_id
+                ? "Position must belong to a Department to assign users"
+                : ""
+            }
+          >
             <UserPlus className="h-4 w-4 mr-2" />
             Assign Users
           </Button>
@@ -252,14 +272,13 @@ export function DepartmentUsersTab({
           {users.length === 0 ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                No users in this department
-              </p>
+              <p className="text-muted-foreground">No users in this position</p>
               <Button
                 variant="outline"
                 size="sm"
                 className="mt-4"
                 onClick={handleOpenAssignDialog}
+                disabled={!position.department_id}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Assign Users
@@ -271,7 +290,7 @@ export function DepartmentUsersTab({
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Position</TableHead>
+                  <TableHead>Department</TableHead>
                   <TableHead>Employee No.</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -299,7 +318,7 @@ export function DepartmentUsersTab({
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground">
-                        {user.position?.name || "-"}
+                        {user.department?.name || "-"}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -340,9 +359,10 @@ export function DepartmentUsersTab({
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign Users to Department</DialogTitle>
+            <DialogTitle>Assign Users to Position</DialogTitle>
             <DialogDescription>
-              Select users to assign to this department.
+              Select users to assign to this position. Note: This will also
+              assign them to &quot;{position.department?.name}&quot;.
             </DialogDescription>
           </DialogHeader>
 
@@ -397,9 +417,11 @@ export function DepartmentUsersTab({
                             title={user.is_active ? "Active" : "Inactive"}
                           />
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {user.email}
-                        </p>
+                        <div className="flex text-xs text-muted-foreground gap-2">
+                          <span>{user.email}</span>
+                          <span>•</span>
+                          <span>{user.department?.name || "No Dept"}</span>
+                        </div>
                       </div>
                       {selectedUsers.includes(user.id) && (
                         <Check className="h-4 w-4 text-primary" />
@@ -451,8 +473,7 @@ export function DepartmentUsersTab({
             <AlertDialogTitle>Unassign User</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to unassign &quot;{userToUnassign?.name}
-              &quot; from this department? This will remove their department and
-              position assignment.
+              &quot;? This will remove their position AND department assignment.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -32,6 +32,7 @@ export const teamKeys = {
   byDepartment: (departmentId: number) => [...teamKeys.all, 'by-department', departmentId] as const,
   byType: (type: string) => [...teamKeys.all, 'by-type', type] as const,
   members: (teamId: number) => [...teamKeys.detail(teamId), 'members'] as const,
+  roles: (type?: string) => [...teamKeys.all, 'roles', type] as const,
 };
 
 // ============================================================================
@@ -56,6 +57,17 @@ export function useTeams(
 /**
  * Fetch single team by ID
  */
+/**
+ * Fetch team roles
+ */
+export function useTeamRoles(type?: string) {
+  return useQuery({
+    queryKey: teamKeys.roles(type),
+    queryFn: () => teamApi.getRoles({ type }),
+    staleTime: 60 * 60 * 1000, // 1 hour
+  });
+}
+
 export function useTeam(
   id: number,
   options?: Omit<UseQueryOptions<Team>, 'queryKey' | 'queryFn'>
@@ -358,11 +370,17 @@ export function useUpdateTeamMember(teamId: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ userId, roleInTeam }: { userId: number; roleInTeam: string }) =>
-      teamApi.updateMember(teamId, userId, roleInTeam),
+    mutationFn: ({ userId, roleInTeam, teamRoleId }: { userId: number; roleInTeam?: string; teamRoleId?: number }) =>
+      teamApi.updateMember(teamId, userId, { role_in_team: roleInTeam, team_role_id: teamRoleId }),
     onSuccess: () => {
       // Invalidate team members list
       queryClient.invalidateQueries({ queryKey: teamKeys.members(teamId) });
+
+      // Invalidate team detail (to update Team Lead if role changed to/from Lead)
+      queryClient.invalidateQueries({ queryKey: teamKeys.detail(teamId) });
+      
+      // Also invalidate team lists to refresh any list views
+      queryClient.invalidateQueries({ queryKey: teamKeys.lists() });
 
       toast.success('Member role updated successfully');
     },

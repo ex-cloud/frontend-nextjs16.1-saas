@@ -287,16 +287,12 @@ export const teamSchema = z.object({
     .nullable(),
   
   start_date: z
-    .string()
-    .datetime()
-    .or(z.date())
+    .union([z.string(), z.date()])
     .optional()
     .nullable(),
   
   end_date: z
-    .string()
-    .datetime()
-    .or(z.date())
+    .union([z.string(), z.date()])
     .optional()
     .nullable(),
 }).superRefine((data, ctx) => {
@@ -361,9 +357,7 @@ export const teamMemberSchema = z.object({
     .nullable(),
   
   joined_at: z
-    .string()
-    .datetime()
-    .or(z.date())
+    .union([z.string(), z.date()])
     .optional()
     .nullable(),
 });

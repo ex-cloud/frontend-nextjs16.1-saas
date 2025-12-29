@@ -362,7 +362,12 @@ export function DepartmentPositionsTab({
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={position.is_active ? "default" : "secondary"}
+                        variant={position.is_active ? "default" : "destructive"}
+                        className={
+                          !position.is_active
+                            ? "bg-red-500 hover:bg-red-600"
+                            : ""
+                        }
                       >
                         {position.is_active ? "Active" : "Inactive"}
                       </Badge>
@@ -419,18 +424,34 @@ export function DepartmentPositionsTab({
                   {filteredPositions.map((position) => (
                     <div
                       key={position.id}
-                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                      onClick={() => handleTogglePosition(position.id)}
+                      className={`flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer ${
+                        !position.is_active
+                          ? "opacity-50 cursor-not-allowed bg-muted/50"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        if (position.is_active)
+                          handleTogglePosition(position.id);
+                      }}
                     >
                       <Checkbox
                         checked={selectedPositions.includes(position.id)}
+                        disabled={!position.is_active}
                         onCheckedChange={() =>
                           handleTogglePosition(position.id)
                         }
                       />
                       <Briefcase className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{position.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{position.name}</p>
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              position.is_active ? "bg-green-500" : "bg-red-500"
+                            }`}
+                            title={position.is_active ? "Active" : "Inactive"}
+                          />
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {position.code}
                         </p>

@@ -33,6 +33,9 @@ export interface User {
   // Relationships
   position?: Position;
   department?: Department;
+  
+  // Status
+  is_active?: boolean;
 }
 
 // ============================================================================
@@ -202,6 +205,10 @@ export interface Team {
   users?: User[]; // through team_members pivot
   active_members_count?: number;
   members_count?: number;
+  
+  // Computed
+  is_full?: boolean;
+  available_slots?: number;
 }
 
 /**
@@ -256,6 +263,19 @@ export const TEAM_STATUS_OPTIONS = [
 // ============================================================================
 
 /**
+ * Team Role Model
+ */
+export interface TeamRole {
+  id: number;
+  name: string;
+  slug: string;
+  type: string;
+  description?: string;
+  permissions?: Record<string, boolean>;
+  created_at?: string;
+}
+
+/**
  * Team Member Model
  * Synced with: lara12-rest-api/app/Models/TeamMember.php
  */
@@ -263,7 +283,9 @@ export interface TeamMember {
   id: number;
   team_id: number;
   user_id: number;
-  role_in_team?: string | null; // e.g., 'Member', 'Coordinator', 'Lead'
+  role_in_team?: string | null; // Legacy string
+  team_role_id?: number | null; // Relation ID
+  team_role?: TeamRole | null; // Relation Object
   joined_at: string;
   left_at?: string | null;
   created_at: string;
@@ -284,6 +306,7 @@ export interface TeamMember {
 export interface TeamMemberInput {
   user_id: number;
   role_in_team?: string;
+  team_role_id?: number;
   joined_at?: string;
 }
 

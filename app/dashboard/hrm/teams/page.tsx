@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProtectedRoute } from "@/components/protected-route";
 import { TeamTable } from "@/components/hrm/teams/team-table";
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import type { Team, TeamInput } from "@/types/hrm";
 
 export default function TeamsPage() {
+  const router = useRouter();
   const [formDialog, setFormDialog] = useState<{
     open: boolean;
     team: Team | null;
@@ -38,6 +40,10 @@ export default function TeamsPage() {
   const restoreMutation = useRestoreTeam();
 
   // Handlers
+  const handleView = (team: Team) => {
+    router.push(`/dashboard/hrm/teams/${team.id}`);
+  };
+
   const handleCreate = () => {
     setFormDialog({ open: true, team: null });
   };
@@ -112,6 +118,7 @@ export default function TeamsPage() {
             <CardContent className="p-6">
               <TeamTable
                 onCreate={handleCreate}
+                onView={handleView}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onRestore={handleRestore}

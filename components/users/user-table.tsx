@@ -83,39 +83,28 @@ export function UserTable({
     sort_order: "desc",
   });
 
-  console.log("UserTable Rendered", {
-    sorting,
-    rowSelection,
-    filters,
-    searchValue,
-  });
-
-  // Debounce search with 300ms delay
+  // Debounce search with 600ms delay for better UX
   useEffect(() => {
-    console.log("UserTable: useEffect for searchValue", searchValue);
     const timer = setTimeout(() => {
       if (searchValue) {
         setFilters((prev) => {
-          console.log("UserTable: Setting search filter", searchValue);
           return { ...prev, search: searchValue, page: 1 };
         });
       } else {
         // Clear search filter when input is empty
         setFilters((prev) => {
-          if (!prev.search) return prev; // Avoid re-render if already empty
-          console.log("UserTable: Clearing search filter");
+          if (!prev.search) return prev;
           const newState = { ...prev };
           delete newState.search;
           return { ...newState, page: 1 };
         });
       }
-    }, 300);
+    }, 600);
 
     return () => clearTimeout(timer);
   }, [searchValue]);
 
   // Fetch users dengan React Query - hanya jika authenticated
-  console.log("UserTable: Calling useUsers", { status, filters });
   const { data, isLoading, error, refetch } = useUsers(filters, {
     enabled: status === "authenticated" && !!session?.user?.accessToken,
   });
@@ -125,7 +114,6 @@ export function UserTable({
 
   // Create columns
   const columns = React.useMemo(() => {
-    console.log("UserTable: Re-creating columns");
     return createUserColumns(
       onView,
       onEdit,

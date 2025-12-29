@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProtectedRoute } from "@/components/protected-route";
 import { PositionTable } from "@/components/hrm/positions/position-table";
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 import type { Position, PositionInput } from "@/types/hrm";
 
 export default function PositionsPage() {
+  const router = useRouter();
   const [formDialog, setFormDialog] = useState<{
     open: boolean;
     position: Position | null;
@@ -30,6 +32,10 @@ export default function PositionsPage() {
   const restoreMutation = useRestorePosition();
 
   // Handlers
+  const handleView = (position: Position) => {
+    router.push(`/dashboard/hrm/positions/${position.id}`);
+  };
+
   const handleCreate = () => {
     setFormDialog({ open: true, position: null });
   };
@@ -100,6 +106,7 @@ export default function PositionsPage() {
             <CardContent className="p-6">
               <PositionTable
                 onCreate={handleCreate}
+                onView={handleView}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onRestore={handleRestore}

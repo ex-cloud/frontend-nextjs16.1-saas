@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -28,14 +28,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { LazyCalendar } from "@/lib/lazy-components";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Calendar } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon } from "lucide-react";
 import { teamSchema } from "@/lib/validations/hrm";
 import { useDepartments } from "@/hooks/use-departments";
-import type { Team, TeamInput } from "@/types/hrm";
+import { departmentApi } from "@/lib/api/departments";
+import { getAllUsersForAssignment } from "@/lib/api/hrm-assignments";
+import type { Team, TeamInput, User } from "@/types/hrm";
 import { TEAM_TYPE_OPTIONS, TEAM_STATUS_OPTIONS } from "@/types/hrm";
 import { z } from "zod";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 
 interface TeamFormProps {
   open: boolean;
@@ -54,11 +65,52 @@ export function TeamForm({
 }: TeamFormProps) {
   const isEditMode = !!team;
 
+  // State for available users (for Team Lead selection)
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
   // Fetch departments for selection
   const { data: departmentsData } = useDepartments({
     per_page: 100,
     is_active: true,
   });
+
+  // Watch department_id and team_type to fetch appropriate users
+  const watchedDeptId = team?.department_id;
+  const watchedTeamType = team?.team_type;
+
+  // Fetch available users when dialog opens or department changes
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!open) return;
+
+      setLoadingUsers(true);
+      try {
+        let users: User[];
+        // For department-specific teams, fetch from department
+        if (watchedDeptId && watchedTeamType !== "cross_functional") {
+          const deptUsersRes = await departmentApi.getUsers(
+            watchedDeptId,
+            1,
+            100
+          );
+          users = deptUsersRes.data || [];
+        } else {
+          // For cross-functional or no department, fetch all users
+          users = await getAllUsersForAssignment();
+        }
+        setAvailableUsers(users);
+      } catch (error) {
+        console.error("Failed to fetch users for Team Lead:", error);
+        setAvailableUsers([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+
+    fetchUsers();
+  }, [open, watchedDeptId, watchedTeamType]);
 
   const form = useForm<z.infer<typeof teamSchema>>({
     resolver: zodResolver(teamSchema),
@@ -98,6 +150,16 @@ export function TeamForm({
           start_date: team.start_date || undefined,
           end_date: team.end_date || undefined,
         });
+
+        // Sync Date Range state
+        if (team.start_date || team.end_date) {
+          setDateRange({
+            from: team.start_date ? new Date(team.start_date) : undefined,
+            to: team.end_date ? new Date(team.end_date) : undefined,
+          });
+        } else {
+          setDateRange(undefined);
+        }
       } else {
         form.reset({
           code: "",
@@ -111,6 +173,7 @@ export function TeamForm({
           start_date: undefined,
           end_date: undefined,
         });
+        setDateRange(undefined);
       }
     }
   }, [team, open, form]);
@@ -347,21 +410,41 @@ export function TeamForm({
                   }) => (
                     <FormItem>
                       <FormLabel>Team Lead</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Lead User ID"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value ? parseInt(e.target.value) : null
-                            )
-                          }
-                        />
-                      </FormControl>
+                      <Select
+                        onValueChange={(value) =>
+                          field.onChange(
+                            value === "none" ? null : parseInt(value)
+                          )
+                        }
+                        value={field.value?.toString() || ""}
+                        disabled={loadingUsers}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                loadingUsers
+                                  ? "Loading users..."
+                                  : "Select team lead"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">No team lead</SelectItem>
+                          {availableUsers.map((user) => (
+                            <SelectItem
+                              key={user.id}
+                              value={user.id.toString()}
+                              disabled={!user.is_active}
+                            >
+                              {user.name} {!user.is_active && "(Inactive)"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        User ID of the team lead
+                        Select who leads this team
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -443,74 +526,85 @@ export function TeamForm({
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField<z.infer<typeof teamSchema>, "start_date">
-                  control={form.control}
-                  name="start_date"
-                  render={({
-                    field,
-                  }: {
-                    field: ControllerRenderProps<
-                      z.infer<typeof teamSchema>,
-                      "start_date"
-                    >;
-                  }) => (
-                    <FormItem>
-                      <FormLabel>Start Date</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type="date"
-                            {...field}
-                            value={
-                              field.value instanceof Date
-                                ? field.value.toISOString().split("T")[0]
-                                : field.value || ""
-                            }
-                          />
-                          <Calendar className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        </div>
-                      </FormControl>
-                      <FormDescription>Team formation date</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="space-y-2">
+                <FormLabel>Duration</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="date"
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !dateRange && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "PPP")} -{" "}
+                            {format(dateRange.to, "PPP")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "PPP")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <LazyCalendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={(range) => {
+                        setDateRange(range);
+                        // Update form values directly
+                        if (range?.from) {
+                          form.setValue(
+                            "start_date",
+                            format(range.from, "yyyy-MM-dd"),
+                            { shouldDirty: true, shouldValidate: true }
+                          );
+                        } else {
+                          form.setValue("start_date", null, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
+                        }
 
-                <FormField<z.infer<typeof teamSchema>, "end_date">
-                  control={form.control}
-                  name="end_date"
-                  render={({
-                    field,
-                  }: {
-                    field: ControllerRenderProps<
-                      z.infer<typeof teamSchema>,
-                      "end_date"
-                    >;
-                  }) => (
-                    <FormItem>
-                      <FormLabel>End Date</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type="date"
-                            {...field}
-                            value={
-                              field.value instanceof Date
-                                ? field.value.toISOString().split("T")[0]
-                                : field.value || ""
-                            }
-                          />
-                          <Calendar className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        </div>
-                      </FormControl>
-                      <FormDescription>
-                        Expected end date (optional)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        if (range?.to) {
+                          form.setValue(
+                            "end_date",
+                            format(range.to, "yyyy-MM-dd"),
+                            { shouldDirty: true, shouldValidate: true }
+                          );
+                        } else {
+                          form.setValue("end_date", null, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
+                        }
+                      }}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  Select team formation date and expected end date (optional)
+                </FormDescription>
+                {form.formState.errors.start_date && (
+                  <p className="text-[0.8rem] font-medium text-destructive">
+                    {form.formState.errors.start_date.message}
+                  </p>
+                )}
+                {form.formState.errors.end_date && (
+                  <p className="text-[0.8rem] font-medium text-destructive">
+                    {form.formState.errors.end_date.message}
+                  </p>
+                )}
               </div>
             </div>
 

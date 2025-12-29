@@ -96,11 +96,11 @@ export function DepartmentTeamsTab({
       case "active":
         return "default";
       case "inactive":
-        return "secondary";
+        return "destructive";
       case "completed":
         return "outline";
       case "on_hold":
-        return "destructive";
+        return "secondary";
       default:
         return "secondary";
     }
@@ -365,7 +365,14 @@ export function DepartmentTeamsTab({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(team.status)}>
+                      <Badge
+                        variant={getStatusVariant(team.status)}
+                        className={
+                          team.status === "inactive"
+                            ? "bg-red-500 hover:bg-red-600"
+                            : ""
+                        }
+                      >
                         {getStatusLabel(team.status)}
                       </Badge>
                     </TableCell>
@@ -418,28 +425,53 @@ export function DepartmentTeamsTab({
                 </div>
               ) : (
                 <div className="p-2 space-y-1">
-                  {filteredTeams.map((team) => (
-                    <div
-                      key={team.id}
-                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                      onClick={() => handleToggleTeam(team.id)}
-                    >
-                      <Checkbox
-                        checked={selectedTeams.includes(team.id)}
-                        onCheckedChange={() => handleToggleTeam(team.id)}
-                      />
-                      <UsersRound className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{team.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {team.code}
-                        </p>
+                  {filteredTeams.map((team) => {
+                    const isActive = team.status === "active";
+                    const statusColor =
+                      team.status === "active"
+                        ? "bg-green-500"
+                        : team.status === "inactive"
+                        ? "bg-red-500"
+                        : team.status === "on_hold"
+                        ? "bg-orange-500"
+                        : "bg-gray-500";
+
+                    return (
+                      <div
+                        key={team.id}
+                        className={`flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer ${
+                          !isActive
+                            ? "opacity-50 cursor-not-allowed bg-muted/50"
+                            : ""
+                        }`}
+                        onClick={() => {
+                          if (isActive) handleToggleTeam(team.id);
+                        }}
+                      >
+                        <Checkbox
+                          checked={selectedTeams.includes(team.id)}
+                          disabled={!isActive}
+                          onCheckedChange={() => handleToggleTeam(team.id)}
+                        />
+                        <UsersRound className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">{team.name}</p>
+                            <div
+                              className={`w-2 h-2 rounded-full ${statusColor}`}
+                              title={getStatusLabel(team.status)}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {team.code}
+                          </p>
+                        </div>
+                        {selectedTeams.includes(team.id) && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
                       </div>
-                      {selectedTeams.includes(team.id) && (
-                        <Check className="h-4 w-4 text-primary" />
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                   {filteredTeams.length === 0 && !loadingAvailable && (
                     <div className="text-center py-8 text-muted-foreground">
                       {searchQuery

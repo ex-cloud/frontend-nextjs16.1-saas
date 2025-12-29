@@ -1,26 +1,27 @@
 /**
  * Team API Service
- * 
+ *
  * Handles all team-related API calls
  * Synced with: TeamController.php & TeamMemberController.php
- * 
+ *
  * @see lara12-rest-api/app/Http/Controllers/Api/V1/Team/TeamController.php
  * @see lara12-rest-api/app/Http/Controllers/Api/V1/Team/TeamMemberController.php
  */
 
-import apiClient from './client';
+import apiClient from "./client";
 import type {
   Team,
   TeamInput,
   TeamFilters,
+  TeamRole,
   TeamMember,
   TeamMemberInput,
   PaginatedResponse,
   SingleResponse,
   SuccessResponse,
-} from '@/types/hrm';
+} from "@/types/hrm";
 
-const BASE_PATH = '/hrm/teams';
+const BASE_PATH = "/hrm/teams";
 
 /**
  * Team API endpoints
@@ -32,36 +33,36 @@ export const teamApi = {
    */
   list: async (filters?: TeamFilters) => {
     const params = new URLSearchParams();
-    
+
     if (filters?.search) {
-      params.append('filter[search]', filters.search);
+      params.append("filter[search]", filters.search);
     }
     if (filters?.team_type) {
-      params.append('filter[team_type]', filters.team_type);
+      params.append("filter[team_type]", filters.team_type);
     }
     if (filters?.status) {
-      params.append('filter[status]', filters.status);
+      params.append("filter[status]", filters.status);
     }
     if (filters?.department_id) {
-      params.append('filter[department_id]', filters.department_id.toString());
+      params.append("filter[department_id]", filters.department_id.toString());
     }
     if (filters?.team_lead_id) {
-      params.append('filter[team_lead_id]', filters.team_lead_id.toString());
+      params.append("filter[team_lead_id]", filters.team_lead_id.toString());
     }
     if (filters?.page) {
-      params.append('page', filters.page.toString());
+      params.append("page", filters.page.toString());
     }
     if (filters?.per_page) {
-      params.append('per_page', filters.per_page.toString());
+      params.append("per_page", filters.per_page.toString());
     }
     if (filters?.sort_by) {
-      const order = filters.sort_order || 'asc';
-      params.append('sort', `${order === 'desc' ? '-' : ''}${filters.sort_by}`);
+      const order = filters.sort_order || "asc";
+      params.append("sort", `${order === "desc" ? "-" : ""}${filters.sort_by}`);
     }
-    
+
     // Include relationships
-    params.append('include', 'teamLead,department');
-    
+    params.append("include", "teamLead,department");
+
     const response = await apiClient.get<PaginatedResponse<Team>>(
       `${BASE_PATH}?${params.toString()}`
     );
@@ -155,16 +156,21 @@ export const teamApi = {
    * Get team members
    * GET /api/v1/teams/{teamId}/members
    */
-  getMembers: async (teamId: number, activeOnly = false, page = 1, perPage = 15) => {
+  getMembers: async (
+    teamId: number,
+    activeOnly = false,
+    page = 1,
+    perPage = 15
+  ) => {
     const params = new URLSearchParams({
       page: page.toString(),
       per_page: perPage.toString(),
     });
-    
+
     if (activeOnly) {
-      params.append('active_only', '1');
+      params.append("active_only", "1");
     }
-    
+
     const response = await apiClient.get<PaginatedResponse<TeamMember>>(
       `${BASE_PATH}/${teamId}/members?${params.toString()}`
     );
@@ -187,10 +193,14 @@ export const teamApi = {
    * Update team member role
    * PUT /api/v1/teams/{teamId}/members/{userId}
    */
-  updateMember: async (teamId: number, userId: number, roleInTeam: string) => {
+  updateMember: async (
+    teamId: number,
+    userId: number,
+    data: { role_in_team?: string; team_role_id?: number }
+  ) => {
     const response = await apiClient.put<SingleResponse<TeamMember>>(
       `${BASE_PATH}/${teamId}/members/${userId}`,
-      { role_in_team: roleInTeam }
+      data
     );
     return response.data.data;
   },
@@ -204,6 +214,18 @@ export const teamApi = {
       `${BASE_PATH}/${teamId}/members/${userId}`
     );
     return response.data;
+  },
+
+  /**
+   * Get team roles
+   * GET /api/v1/team-roles
+   */
+  getRoles: async (params?: { type?: string }) => {
+    const response = await apiClient.get<{ data: TeamRole[] }>(
+      "/hrm/team-roles",
+      { params }
+    );
+    return response.data.data;
   },
 };
 
