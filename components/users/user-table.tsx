@@ -38,6 +38,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { createUserColumns } from "./user-columns";
+import { DataTableViewOptions } from "@/components/ui/data-table-view-options";
 import {
   useUsers,
   useExportUsers,
@@ -86,12 +87,12 @@ export function UserTable({
   // Debounce search with 600ms delay for better UX
   useEffect(() => {
     const timer = setTimeout(() => {
+      // ... (search logic remains same)
       if (searchValue) {
         setFilters((prev) => {
           return { ...prev, search: searchValue, page: 1 };
         });
       } else {
-        // Clear search filter when input is empty
         setFilters((prev) => {
           if (!prev.search) return prev;
           const newState = { ...prev };
@@ -103,6 +104,25 @@ export function UserTable({
 
     return () => clearTimeout(timer);
   }, [searchValue]);
+
+  // Sync sorting state with filters
+  useEffect(() => {
+    if (sorting.length > 0) {
+      const sort = sorting[0];
+      setFilters((prev) => ({
+        ...prev,
+        sort_by: sort.id as UserFilters["sort_by"],
+        sort_order: sort.desc ? "desc" : "asc",
+      }));
+    } else {
+      // Default sorting if none selected
+      setFilters((prev) => ({
+        ...prev,
+        sort_by: "created_at",
+        sort_order: "desc",
+      }));
+    }
+  }, [sorting]);
 
   // Fetch users dengan React Query - hanya jika authenticated
   const { data, isLoading, error, refetch } = useUsers(filters, {
@@ -322,6 +342,8 @@ export function UserTable({
           <Button variant="outline" size="icon" onClick={handleRefetch}>
             <RefreshCw className="h-4 w-4" />
           </Button>
+
+          <DataTableViewOptions table={table} />
         </div>
 
         <div className="flex items-center gap-2">

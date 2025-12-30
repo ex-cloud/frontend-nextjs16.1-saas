@@ -32,6 +32,17 @@ export interface User {
   permissions: Permission[]
   avatar_url?: string
   profile?: UserProfile | null
+  
+  // HRM Fields
+  department_id?: string | number | null
+  position_id?: string | number | null
+  department?: { id: string | number; name: string; code: string } | null
+  position?: { id: string | number; name: string; code: string; level: string } | null
+  employee_number?: string | null
+  join_date?: string | null
+  probation_end_date?: string | null
+  direct_manager_id?: string | number | null
+  direct_manager?: User | null
 }
 
 export interface Role {
@@ -105,6 +116,14 @@ export interface CreateUserInput {
   roles?: string[] // Role IDs
   is_active?: boolean
   avatar?: File | null
+  
+  // HRM Fields
+  department_id?: string | number | null
+  position_id?: string | number | null
+  employee_number?: string | null
+  join_date?: string | null
+  probation_end_date?: string | null
+  direct_manager_id?: string | number | null
 }
 
 export interface UpdateUserInput {
@@ -122,6 +141,16 @@ export interface UpdateUserInput {
   roles?: string[] // Role IDs
   is_active?: boolean
   avatar?: File | null
+  avatar_removed?: boolean
+  
+  // HRM Fields
+  department_id?: string | number | null
+  position_id?: string | number | null
+  employee_number?: string | null
+  join_date?: string | null
+  probation_end_date?: string | null
+  direct_manager_id?: string | number | null
+  
   // Profile fields
   gender?: string
   mobile?: string
@@ -140,6 +169,14 @@ export interface UserFormData {
   password_confirmation?: string
   roles: string[]
   is_active: boolean
+  
+  // HRM Fields
+  department_id?: string | number | null
+  position_id?: string | number | null
+  employee_number?: string | null
+  join_date?: string | null
+  probation_end_date?: string | null
+  direct_manager_id?: string | number | null
 }
 
 // Password Change Input

@@ -18,11 +18,9 @@ import {
   useUploadAvatar,
   useDeleteAvatar,
 } from "@/lib/hooks/use-users";
-import type { User } from "@/types/user";
-import type {
-  CreateUserFormData,
-  UpdateUserFormData,
-} from "@/lib/validations/user.schema";
+import type { User, CreateUserInput, UpdateUserInput } from "@/types/user";
+
+import { format } from "date-fns";
 
 interface Role {
   id: string;
@@ -152,11 +150,24 @@ export function UsersClient({ initialRoles = [] }: UsersClientProps) {
 
       console.log("User data (without avatar):", userData);
 
+      // Format Date objects to YYYY-MM-DD strings for API
+      const formattedData = {
+        ...userData,
+        join_date:
+          userData.join_date instanceof Date
+            ? format(userData.join_date, "yyyy-MM-dd")
+            : userData.join_date,
+        probation_end_date:
+          userData.probation_end_date instanceof Date
+            ? format(userData.probation_end_date, "yyyy-MM-dd")
+            : userData.probation_end_date,
+      };
+
       if (formDialog.user) {
         // Update existing user
         const updatedUser = await updateMutation.mutateAsync({
           id: formDialog.user.id,
-          data: userData as UpdateUserFormData,
+          data: formattedData as unknown as UpdateUserInput,
         });
         userId = updatedUser.id;
         console.log("User updated, ID:", userId);
@@ -170,7 +181,7 @@ export function UsersClient({ initialRoles = [] }: UsersClientProps) {
       } else {
         // Create new user
         const newUser = await createMutation.mutateAsync(
-          userData as CreateUserFormData
+          formattedData as unknown as CreateUserInput
         );
         userId = newUser.id;
         console.log("User created, ID:", userId);

@@ -19,6 +19,7 @@ import {
   UserX,
   Mail,
   Key,
+  ArrowUpDown,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
@@ -57,7 +58,18 @@ export function createUserColumns(
     },
     {
       accessorKey: "name",
-      header: "User",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="-ml-4"
+          >
+            User
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
       cell: ({ row }) => {
         const user = row.original;
         const initials = user.name
@@ -85,8 +97,20 @@ export function createUserColumns(
     },
     {
       accessorKey: "email",
-      header: "Email",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="-ml-4"
+          >
+            Email
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
       cell: ({ row }) => {
+        // ... (rest of cell)
         const user = row.original;
         return (
           <div className="flex items-center gap-2">
@@ -102,8 +126,63 @@ export function createUserColumns(
       },
     },
     {
+      accessorKey: "department",
+      header: "Department",
+      // ... (rest of department column)
+      cell: ({ row }) => {
+        const department = row.original.department;
+        return (
+          <div className="flex items-center">
+            {department ? (
+              <span className="font-medium">{department.name}</span>
+            ) : (
+              <span className="text-muted-foreground italic">No Dept</span>
+            )}
+          </div>
+        );
+      },
+      enableHiding: true,
+    },
+    {
+      accessorKey: "position",
+      header: "Position",
+      // ...
+      cell: ({ row }) => {
+        const position = row.original.position;
+        return (
+          <div className="flex items-center">
+            {position ? (
+              <span>{position.name}</span>
+            ) : (
+              <span className="text-muted-foreground italic">No Position</span>
+            )}
+          </div>
+        );
+      },
+      enableHiding: true,
+    },
+    {
+      accessorKey: "employee_number",
+      header: "Employee ID",
+      // ...
+      cell: ({ row }) => {
+        const empNo = row.original.employee_number;
+        return (
+          <div className="flex items-center">
+            {empNo ? (
+              <span className="font-mono text-xs">{empNo}</span>
+            ) : (
+              <span className="text-muted-foreground">-</span>
+            )}
+          </div>
+        );
+      },
+      enableHiding: true,
+    },
+    {
       accessorKey: "roles",
       header: "Roles",
+      // ...
       cell: ({ row }) => {
         const roles = row.original.roles;
         if (!roles || roles.length === 0) {
@@ -123,6 +202,7 @@ export function createUserColumns(
     {
       accessorKey: "is_active",
       header: "Status",
+      // ...
       cell: ({ row }) => {
         const isActive = row.original.is_active;
         return (
@@ -135,6 +215,7 @@ export function createUserColumns(
     {
       accessorKey: "last_login_at",
       header: "Last Login",
+      // ...
       cell: ({ row }) => {
         const lastLogin = row.original.last_login_at;
         if (!lastLogin) {
@@ -149,7 +230,18 @@ export function createUserColumns(
     },
     {
       accessorKey: "created_at",
-      header: "Created",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="-ml-4"
+          >
+            Created
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
       cell: ({ row }) => {
         const createdAt = row.original.created_at;
         return (

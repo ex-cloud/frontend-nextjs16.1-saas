@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -36,7 +36,24 @@ import type {
   CreateUserFormData,
   UpdateUserFormData,
 } from "@/lib/validations/user.schema";
-import { Loader2 } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { useDepartments } from "@/hooks/use-departments";
+import { usePositions } from "@/hooks/use-positions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface UserFormDialogProps {
   open: boolean;
@@ -65,6 +82,12 @@ type UserFormData = {
   password_confirmation?: string;
   avatar?: File | string | null;
   avatar_removed?: boolean;
+  department_id?: string | number | null;
+  position_id?: string | number | null;
+  employee_number?: string | null;
+  join_date?: string | Date | null;
+  probation_end_date?: string | Date | null;
+  direct_manager_id?: string | number | null;
 };
 
 export function UserFormDialog({
@@ -92,8 +115,47 @@ export function UserFormDialog({
       is_active: user?.is_active ?? true,
       avatar: null,
       avatar_removed: false,
+      // HRM Defaults
+      department_id: user?.department_id || null,
+      position_id: user?.position_id || null,
+      employee_number: user?.employee_number || "",
+      join_date: user?.join_date ? new Date(user.join_date) : null,
+      probation_end_date: user?.probation_end_date
+        ? new Date(user.probation_end_date)
+        : null,
+      direct_manager_id: user?.direct_manager_id || null,
     },
   });
+
+  // HRM Data Fetching
+  const { data: departmentsData } = useDepartments(
+    {
+      per_page: 100,
+      is_active: true,
+    },
+    {
+      enabled: open, // Only fetch when dialog is open
+    }
+  );
+
+  // Watch department_id to filter positions
+  const watchedDeptId = useWatch({
+    control: form.control,
+    name: "department_id",
+  });
+
+  const { data: positionsData } = usePositions(
+    {
+      per_page: 100,
+      is_active: true,
+      department_id: watchedDeptId ? Number(watchedDeptId) : undefined,
+    },
+    {
+      // Only fetch when dialog is open AND (a department is selected OR we want to allow all positions if logic changes)
+      // Based on UI logic `disabled={!watchedDeptId}`, we only need positions when dept is selected.
+      enabled: open && !!watchedDeptId,
+    }
+  );
 
   const { reset, setValue } = form;
 
@@ -113,6 +175,14 @@ export function UserFormDialog({
           is_active: user.is_active ?? true,
           avatar: user.avatar_url || null, // Use URL directly
           avatar_removed: false,
+          department_id: user.department_id || null, // Convert to string for Select? Zod handles number/string union now.
+          position_id: user.position_id || null,
+          employee_number: user.employee_number || "",
+          join_date: user.join_date ? new Date(user.join_date) : null,
+          probation_end_date: user.probation_end_date
+            ? new Date(user.probation_end_date)
+            : null,
+          direct_manager_id: user.direct_manager_id || null,
         };
 
         console.log("Form reset with data:", formData);
@@ -130,6 +200,12 @@ export function UserFormDialog({
           is_active: true,
           avatar: null,
           avatar_removed: false,
+          department_id: null,
+          position_id: null,
+          employee_number: "",
+          join_date: null,
+          probation_end_date: null,
+          direct_manager_id: null,
         });
       }
     }
@@ -176,8 +252,9 @@ export function UserFormDialog({
             className="flex flex-col h-full"
           >
             <Tabs defaultValue="basic" className="flex-1 px-6">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsList className="grid w-full grid-cols-4 mb-6">
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
+                <TabsTrigger value="organization">Organization</TabsTrigger>
                 <TabsTrigger value="security">Security</TabsTrigger>
                 <TabsTrigger value="roles">Roles & Avatar</TabsTrigger>
               </TabsList>
@@ -305,6 +382,222 @@ export function UserFormDialog({
                             />
                           </FormControl>
                         </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Organization Tab */}
+              <TabsContent
+                value="organization"
+                className="space-y-6 overflow-y-auto max-h-[50vh] pr-2"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Department */}
+                  <FormField
+                    control={form.control}
+                    name="department_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Department</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(value)}
+                          value={field.value?.toString() || ""}
+                          disabled={isLoading}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {departmentsData?.data.map((dept) => (
+                              <SelectItem
+                                key={dept.id}
+                                value={dept.id.toString()}
+                              >
+                                {dept.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Position */}
+                  <FormField
+                    control={form.control}
+                    name="position_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Position</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(value)}
+                          value={field.value?.toString() || ""}
+                          disabled={isLoading || !watchedDeptId}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={
+                                  watchedDeptId
+                                    ? "Select position"
+                                    : "Select department first"
+                                }
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {positionsData?.data.map((pos) => (
+                              <SelectItem
+                                key={pos.id}
+                                value={pos.id.toString()}
+                              >
+                                {pos.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Employee Number - Only show in Edit Mode */}
+                  {isEditMode && (
+                    <FormField
+                      control={form.control}
+                      name="employee_number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Employee Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="EMP-001"
+                              {...field}
+                              value={field.value || ""}
+                              disabled={isLoading}
+                              readOnly
+                              className="bg-muted"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Auto-generated system ID
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {/* Spacer removed to fix layout alignment */}
+
+                  {/* Join Date */}
+                  <FormField
+                    control={form.control}
+                    name="join_date"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Join Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(
+                                    field.value instanceof Date
+                                      ? field.value
+                                      : new Date(field.value),
+                                    "PPP"
+                                  )
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={
+                                field.value instanceof Date
+                                  ? field.value
+                                  : field.value
+                                  ? new Date(field.value)
+                                  : undefined
+                              }
+                              onSelect={field.onChange}
+                              disabled={(date) =>
+                                date > new Date() ||
+                                date < new Date("1900-01-01")
+                              }
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Probation End Date */}
+                  <FormField
+                    control={form.control}
+                    name="probation_end_date"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Probation End Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(
+                                    field.value instanceof Date
+                                      ? field.value
+                                      : new Date(field.value),
+                                    "PPP"
+                                  )
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={
+                                field.value instanceof Date
+                                  ? field.value
+                                  : field.value
+                                  ? new Date(field.value)
+                                  : undefined
+                              }
+                              onSelect={field.onChange}
+                              disabled={(date) => date < new Date("1900-01-01")}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />

@@ -42,6 +42,14 @@ export const createUserSchema = z.object({
   is_active: z.boolean().default(true),
   
   avatar: z.any().optional().nullable(),
+  
+  // HRM Fields
+  department_id: z.union([z.string(), z.number()]).optional().nullable(),
+  position_id: z.union([z.string(), z.number()]).optional().nullable(),
+  employee_number: z.string().max(50).optional().nullable(),
+  join_date: z.union([z.string(), z.date()]).optional().nullable(),
+  probation_end_date: z.union([z.string(), z.date()]).optional().nullable(),
+  direct_manager_id: z.union([z.string(), z.number()]).optional().nullable(),
 }).refine((data) => data.password === data.password_confirmation, {
   message: "Passwords don't match",
   path: ['password_confirmation'],
@@ -91,6 +99,15 @@ export const updateUserSchema = z.object({
   is_active: z.boolean(),
   
   avatar: z.any().optional().nullable(),
+  avatar_removed: z.boolean().optional(),
+  
+  // HRM Fields
+  department_id: z.union([z.string(), z.number()]).optional().nullable(),
+  position_id: z.union([z.string(), z.number()]).optional().nullable(),
+  employee_number: z.string().max(50).optional().nullable(),
+  join_date: z.union([z.string(), z.date()]).optional().nullable(),
+  probation_end_date: z.union([z.string(), z.date()]).optional().nullable(),
+  direct_manager_id: z.union([z.string(), z.number()]).optional().nullable(),
 }).refine(
   (data) => {
     // If password is provided, password_confirmation must match
