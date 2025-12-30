@@ -12,16 +12,6 @@
 
 import dynamic from 'next/dynamic'
 
-/**
- * Lazy load user detail dialog
- * Only loads when user clicks "View" button
- */
-export const LazyUserDetailDialog = dynamic(
-  () => import('@/components/users/user-detail-dialog').then(mod => ({ default: mod.UserDetailDialog })),
-  {
-    ssr: false,
-  }
-)
 
 /**
  * Lazy load user form dialog

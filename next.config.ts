@@ -17,10 +17,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'http',
         hostname: 'localhost',
+        port: '8000',
       },
       {
         protocol: 'http',
         hostname: '127.0.0.1',
+        port: '8000',
       },
     ],
     formats: ['image/avif', 'image/webp'],
@@ -53,6 +55,16 @@ const nextConfig: NextConfig = {
       'lucide-react',
       'recharts',
     ],
+  },
+
+  async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+    return [
+      {
+        source: '/laravel-storage/:path*',
+        destination: `${apiUrl}/storage/:path*`,
+      },
+    ];
   },
 
   // Headers for caching

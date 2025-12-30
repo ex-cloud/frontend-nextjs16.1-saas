@@ -4,7 +4,6 @@ import { useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserTable } from "@/components/users/user-table";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
-import { UserDetailDialog } from "@/components/users/user-detail-dialog";
 import { DeleteConfirmationDialog } from "@/components/users/delete-confirmation-dialog";
 import {
   useCreateUser,
@@ -43,13 +42,6 @@ export function UsersClient({ initialRoles = [] }: UsersClientProps) {
   }>({
     open: false,
     user: null,
-  });
-  const [detailDialog, setDetailDialog] = useState<{
-    open: boolean;
-    userId: string | null;
-  }>({
-    open: false,
-    userId: null,
   });
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
@@ -256,12 +248,6 @@ export function UsersClient({ initialRoles = [] }: UsersClientProps) {
         onSubmit={handleFormSubmit}
         user={formDialog.user}
         isLoading={createMutation.isPending || updateMutation.isPending}
-      />
-
-      <UserDetailDialog
-        open={detailDialog.open}
-        onOpenChange={(open) => setDetailDialog({ open, userId: null })}
-        userId={detailDialog.userId}
       />
 
       <DeleteConfirmationDialog
