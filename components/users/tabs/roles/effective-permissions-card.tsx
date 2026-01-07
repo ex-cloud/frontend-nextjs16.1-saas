@@ -2,9 +2,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lock } from "lucide-react";
-import { PermissionModuleItem } from "@/components/users/tabs/roles/permission-module-item";
+import { PermissionGroupItem } from "@/components/users/tabs/roles/permission-group-item";
 import { useMemo } from "react";
 import { Role } from "@/types/user";
+import { permissionService } from "@/lib/api/services/permission.service";
+import { useQuery } from "@tanstack/react-query";
 
 interface EffectivePermissionsCardProps {
   userRoles: Role[];
@@ -30,11 +32,23 @@ interface ModulePermissionData {
   }[];
 }
 
+interface GroupedPermissionData {
+  groupName: string;
+  modules: ModulePermissionData[];
+}
+
 export function EffectivePermissionsCard({
   userRoles,
 }: EffectivePermissionsCardProps) {
+  // Fetch permission groups configuration from backend
+  const { data: moduleGroups = {} } = useQuery({
+    queryKey: ["permission-groups"],
+    queryFn: () => permissionService.getPermissionGroups(),
+    staleTime: Infinity, // Configuration rarely changes
+  });
+
   // Consolidate all permissions from all roles and group by module
-  const modulePermissions = useMemo(() => {
+  const groupedPermissions = useMemo(() => {
     const allPermissions = new Set<string>();
 
     // Collect all unique permissions from all roles
@@ -46,18 +60,16 @@ export function EffectivePermissionsCard({
 
     // Parse permissions and group by module
     // Permission format: action_module or action_module_submodule
-    // Examples: view_users, create_departments, edit_positions, access_api
     const moduleMap = new Map<string, Map<string, Set<string>>>();
 
     allPermissions.forEach((permissionName) => {
       const parts = permissionName.split("_");
       if (parts.length < 2) return;
 
-      const action = parts[0]; // view, create, edit, delete, access, etc.
-      const moduleParts = parts.slice(1); // users, departments, etc.
+      const action = parts[0];
+      const moduleParts = parts.slice(1);
       const moduleName = moduleParts.join("_");
 
-      // Map common action names to our standard actions
       const normalizedAction = normalizeAction(action);
       if (!normalizedAction) return;
 
@@ -67,8 +79,6 @@ export function EffectivePermissionsCard({
 
       const documentMap = moduleMap.get(moduleName)!;
 
-      // For now, treat the module itself as the document
-      // You can expand this logic if you have sub-documents
       if (!documentMap.has(moduleName)) {
         documentMap.set(moduleName, new Set());
       }
@@ -111,9 +121,52 @@ export function EffectivePermissionsCard({
       result.push(moduleData);
     });
 
-    // Sort modules alphabetically
-    return result.sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }, [userRoles]);
+    // Group modules into categories using dynamic groups
+    const groups: GroupedPermissionData[] = [];
+    const processedModules = new Set<string>();
+
+    // Process defined groups
+    Object.entries(moduleGroups).forEach(([groupName, moduleKeys]) => {
+      const groupModules: ModulePermissionData[] = [];
+      const keys = moduleKeys as string[];
+
+      keys.forEach((key: string) => {
+        const foundModule = result.find(
+          (m) =>
+            m.moduleName === key ||
+            m.moduleName.replace(/s$/, "") === key.replace(/s$/, "")
+        );
+        if (foundModule && !processedModules.has(foundModule.moduleName)) {
+          groupModules.push(foundModule);
+          processedModules.add(foundModule.moduleName);
+        }
+      });
+
+      if (groupModules.length > 0) {
+        groups.push({
+          groupName,
+          modules: groupModules.sort((a, b) =>
+            a.displayName.localeCompare(b.displayName)
+          ),
+        });
+      }
+    });
+
+    // Handle "Other" modules (not in any defined group)
+    const otherModules = result.filter(
+      (m) => !processedModules.has(m.moduleName)
+    );
+    if (otherModules.length > 0) {
+      groups.push({
+        groupName: "Others",
+        modules: otherModules.sort((a, b) =>
+          a.displayName.localeCompare(b.displayName)
+        ),
+      });
+    }
+
+    return groups;
+  }, [userRoles, moduleGroups]);
 
   const roleNames = userRoles.map((r) => r.name).join(", ");
 
@@ -139,12 +192,14 @@ export function EffectivePermissionsCard({
 
   return (
     <Card className="shadow-none border">
-      <CardHeader className="pb-2">
-        <div className="flex items-center gap-2">
-          <Lock className="h-4 w-4 text-muted-foreground" />
-          <CardTitle className="text-lg font-semibold">
-            Effective Permissions
-          </CardTitle>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-lg font-semibold">
+              Effective Permissions
+            </CardTitle>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
           Consolidated access rights based on assigned roles ({roleNames}).
@@ -152,19 +207,26 @@ export function EffectivePermissionsCard({
       </CardHeader>
 
       <CardContent className="pt-2">
-        <div className="space-y-0 rounded-lg border overflow-hidden">
-          {modulePermissions.map((module, index) => (
-            <PermissionModuleItem
-              key={module.moduleName}
-              moduleName={module.displayName}
-              documents={module.documents}
-              documentCount={module.documents.length}
-              isLast={index === modulePermissions.length - 1}
-            />
-          ))}
+        <div className="space-y-0  overflow-hidden">
+          {groupedPermissions.map((group) => {
+            // Aggregate all documents from all modules in this group
+            const aggregatedDocuments = group.modules.flatMap(
+              (m) => m.documents
+            );
+
+            return (
+              <PermissionGroupItem
+                key={group.groupName}
+                groupName={group.groupName}
+                documents={aggregatedDocuments}
+                documentCount={aggregatedDocuments.length}
+                defaultOpen={true}
+              />
+            );
+          })}
         </div>
 
-        {modulePermissions.length === 0 && (
+        {groupedPermissions.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             No permissions found for assigned roles.
           </div>

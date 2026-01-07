@@ -40,4 +40,19 @@ export const permissionService = {
     
     return grouped
   },
+  /**
+   * Sync permissions from backend seeders
+   */
+  syncPermissions: async (): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>(`${PERMISSIONS_ENDPOINT}/sync`)
+    return response.data
+  },
+
+  /**
+   * Get permission groups from backend
+   */
+  getPermissionGroups: async (): Promise<Record<string, string[]>> => {
+    const response = await api.get<ApiResponse<Record<string, string[]>>>(`${PERMISSIONS_ENDPOINT}/groups`)
+    return response.data.data
+  },
 }
