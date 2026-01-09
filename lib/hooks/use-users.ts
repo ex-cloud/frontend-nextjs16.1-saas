@@ -27,6 +27,8 @@ export const userKeys = {
   detail: (id: string) => [...userKeys.details(), id] as const,
   permissions: (id: string) => [...userKeys.detail(id), 'permissions'] as const,
   activities: (id: string, page: number) => [...userKeys.detail(id), 'activities', page] as const,
+  comments: (id: string) => [...userKeys.detail(id), 'comments'] as const,
+  attachments: (id: string) => [...userKeys.detail(id), 'attachments'] as const,
   stats: () => [...userKeys.all, 'stats'] as const,
 }
 
@@ -440,5 +442,98 @@ export function useExportUsers() {
         description: error.message || 'Something went wrong',
       })
     },
+  })
+}
+
+/**
+ * Hook to fetch user comments
+ */
+export function useUserComments(
+  id: string,
+  options?: Omit<UseQueryOptions<import('@/types/user').Comment[]>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: userKeys.comments(id),
+    queryFn: () => userService.getComments(id),
+    enabled: !!id,
+    ...options,
+  })
+}
+
+/**
+ * Hook to add a comment
+ */
+export function useAddComment(
+  options?: UseMutationOptions<import('@/types/user').Comment, Error, { id: string; body: string }>
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, body }) => userService.addComment(id, body),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.comments(variables.id) })
+      toast.success('Comment added')
+    },
+    onError: (error) => {
+      toast.error('Failed to add comment', { description: error.message })
+    },
+    ...options,
+  })
+}
+
+/**
+ * Hook to fetch user attachments
+ */
+export function useUserAttachments(
+  id: string,
+  options?: Omit<UseQueryOptions<import('@/types/user').Attachment[]>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: userKeys.attachments(id),
+    queryFn: () => userService.getAttachments(id),
+    enabled: !!id,
+    ...options,
+  })
+}
+
+/**
+ * Hook to upload attachment
+ */
+export function useUploadAttachment(
+  options?: UseMutationOptions<import('@/types/user').Attachment, Error, { id: string; file: File }>
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, file }) => userService.uploadAttachment(id, file),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.attachments(variables.id) })
+      toast.success('File uploaded successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to upload file', { description: error.message })
+    },
+    ...options,
+  })
+}
+
+/**
+ * Hook to delete attachment
+ */
+export function useDeleteAttachment(
+  options?: UseMutationOptions<void, Error, { id: string; mediaId: number }>
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, mediaId }) => userService.deleteAttachment(id, mediaId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.attachments(variables.id) })
+      toast.success('File deleted successfully')
+    },
+    onError: (error) => {
+      toast.error('Failed to delete file', { description: error.message })
+    },
+    ...options,
   })
 }

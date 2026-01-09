@@ -9,6 +9,8 @@ import type {
   ActivityLog,
   UserStats,
   ChangePasswordInput,
+  Comment,
+  Attachment,
 } from '@/types/user'
 import type { Permission } from '@/types/permission'
 
@@ -235,6 +237,37 @@ export const userService = {
       data
     )
     return response.data.data
+  },
+
+  getComments: async (id: string): Promise<Comment[]> => {
+    const response = await api.get<ApiResponse<Comment[]>>(`${USERS_ENDPOINT}/${id}/comments`)
+    return response.data.data
+  },
+
+  addComment: async (id: string, body: string): Promise<Comment> => {
+    const response = await api.post<ApiResponse<Comment>>(`${USERS_ENDPOINT}/${id}/comments`, { body })
+    return response.data.data
+  },
+
+  getAttachments: async (id: string): Promise<Attachment[]> => {
+    const response = await api.get<ApiResponse<Attachment[]>>(`${USERS_ENDPOINT}/${id}/attachments`)
+    return response.data.data
+  },
+
+  uploadAttachment: async (id: string, file: File): Promise<Attachment> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await api.post<ApiResponse<Attachment>>(
+      `${USERS_ENDPOINT}/${id}/attachments`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+    return response.data.data
+  },
+
+  deleteAttachment: async (id: string, mediaId: number): Promise<void> => {
+    await api.delete(`${USERS_ENDPOINT}/${id}/attachments/${mediaId}`)
   },
 }
 
