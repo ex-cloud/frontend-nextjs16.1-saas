@@ -172,7 +172,10 @@ export function EffectivePermissionsCard({
 
   if (userRoles.length === 0) {
     return (
-      <Card className="shadow-none border">
+      <Card
+        className="shadow-none border rounded-md glass-card fade-in-up"
+        style={{ animationDelay: "0.2s" }}
+      >
         <CardHeader>
           <div className="flex items-center gap-2">
             <Lock className="h-4 w-4 text-muted-foreground" />
@@ -191,7 +194,10 @@ export function EffectivePermissionsCard({
   }
 
   return (
-    <Card className="shadow-none border">
+    <Card
+      className="shadow-none border rounded-md glass-card fade-in-up"
+      style={{ animationDelay: "0.2s" }}
+    >
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

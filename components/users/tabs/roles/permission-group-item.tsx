@@ -47,7 +47,7 @@ export function PermissionGroupItem({
     <Collapsible
       open={isOpen}
       onOpenChange={setIsOpen}
-      className="border rounded-lg bg-card text-card-foreground shadow-sm mb-4 overflow-hidden"
+      className="border shadow-none rounded-md bg-card text-card-foreground mb-4 overflow-hidden"
     >
       <CollapsibleTrigger asChild>
         <button

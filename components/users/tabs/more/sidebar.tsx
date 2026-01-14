@@ -54,30 +54,11 @@ export function UserSidebar({ user }: UserSidebarProps) {
   return (
     <div className="space-y-6">
       {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Button variant="outline" className="w-full justify-start" size="sm">
-            <KeyRound className="mr-2 h-4 w-4" /> Reset Password
-          </Button>
-          <Button variant="outline" className="w-full justify-start" size="sm">
-            <Mail className="mr-2 h-4 w-4" /> Send Email
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full justify-start text-destructive hover:text-destructive"
-            size="sm"
-          >
-            <Building className="mr-2 h-4 w-4" /> Block Access
-          </Button>
-        </CardContent>
-      </Card>
+      <QuickActionsCard />
 
       {/* Tags */}
-      <Card>
-        <CardHeader>
+      <Card className="card shadow-none rounded-md">
+        <CardHeader className="card-header">
           <CardTitle className="text-base">Tags</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -108,8 +89,8 @@ export function UserSidebar({ user }: UserSidebarProps) {
       </Card>
 
       {/* Dates/Meta */}
-      <Card>
-        <CardHeader>
+      <Card className="card shadow-none rounded-md">
+        <CardHeader className="card-header">
           <CardTitle className="text-base">Meta Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
@@ -144,5 +125,30 @@ export function UserSidebar({ user }: UserSidebarProps) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export function QuickActionsCard() {
+  return (
+    <Card className="card shadow-none rounded-md">
+      <CardHeader className="card-header">
+        <CardTitle className="text-base">Quick Actions</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <Button variant="outline" className="w-full justify-start" size="sm">
+          <KeyRound className="mr-2 h-4 w-4" /> Reset Password
+        </Button>
+        <Button variant="outline" className="w-full justify-start" size="sm">
+          <Mail className="mr-2 h-4 w-4" /> Send Email
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full justify-start text-destructive hover:text-destructive"
+          size="sm"
+        >
+          <Building className="mr-2 h-4 w-4" /> Block Access
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

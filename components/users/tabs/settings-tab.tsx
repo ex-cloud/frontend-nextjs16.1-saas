@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Lock, Eye, EyeOff, Check, X } from "lucide-react";
 import { useChangePassword } from "@/lib/hooks/use-user-password";
+import { useUserPage } from "@/components/users/user-page-context";
 
 interface SettingsTabProps {
   userId: string;
@@ -54,7 +55,7 @@ export function SettingsTab({ userId }: SettingsTabProps) {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
     reset,
     control,
   } = useForm<PasswordFormData>({
@@ -66,7 +67,9 @@ export function SettingsTab({ userId }: SettingsTabProps) {
     },
   });
 
-  const changePasswordMutation = useChangePassword({
+  const { setIsDirty, registerSaveHandler } = useUserPage();
+
+  const { mutate: changePassword } = useChangePassword({
     onSuccess: () => {
       reset();
       setShowCurrentPassword(false);
@@ -74,6 +77,28 @@ export function SettingsTab({ userId }: SettingsTabProps) {
       setShowConfirmPassword(false);
     },
   });
+
+  const onSubmit = useCallback(
+    (data: PasswordFormData) => {
+      changePassword({
+        userId,
+        data: {
+          current_password: data.current_password,
+          new_password: data.new_password,
+          new_password_confirmation: data.new_password_confirmation,
+        },
+      });
+    },
+    [changePassword, userId]
+  );
+
+  useEffect(() => {
+    setIsDirty(isDirty);
+  }, [isDirty, setIsDirty]);
+
+  useEffect(() => {
+    registerSaveHandler(handleSubmit(onSubmit));
+  }, [registerSaveHandler, handleSubmit, onSubmit]);
 
   const newPassword = useWatch({ control, name: "new_password" }) || "";
 
@@ -86,21 +111,13 @@ export function SettingsTab({ userId }: SettingsTabProps) {
     { label: "One special character", met: /[^A-Za-z0-9]/.test(newPassword) },
   ];
 
-  const onSubmit = (data: PasswordFormData) => {
-    changePasswordMutation.mutate({
-      userId,
-      data: {
-        current_password: data.current_password,
-        new_password: data.new_password,
-        new_password_confirmation: data.new_password_confirmation,
-      },
-    });
-  };
-
   return (
     <div className="space-y-6">
       {/* Password Change Section */}
-      <Card>
+      <Card
+        className="shadow-none rounded-md glass-card fade-in-up"
+        style={{ animationDelay: "0.1s" }}
+      >
         <CardHeader>
           <div className="flex items-center gap-2">
             <Lock className="h-5 w-5 text-primary" />
@@ -244,13 +261,6 @@ export function SettingsTab({ userId }: SettingsTabProps) {
                 </div>
               </div>
             )}
-
-            {/* Submit Button */}
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Updating..." : "Update Password"}
-              </Button>
-            </div>
           </form>
         </CardContent>
       </Card>

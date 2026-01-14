@@ -23,6 +23,7 @@ export interface User {
   name: string;
   email: string;
   avatar?: string | null;
+  avatar_url?: string | null;
   department_id?: number | null;
   position_id?: number | null;
   employee_number?: string | null;
@@ -368,24 +369,11 @@ export type TransferReason = typeof TRANSFER_REASONS[number];
 // API Response Types
 // ============================================================================
 
-/**
- * Standard Laravel Pagination Response
- */
-export interface PaginatedResponse<T> {
-  data: T[];
-  current_page: number;
-  per_page: number;
-  total: number;
-  last_page: number;
-  from: number | null;
-  to: number | null;
-  links: {
-    first: string | null;
-    last: string | null;
-    prev: string | null;
-    next: string | null;
-  };
-}
+import { 
+  PaginatedResponse as CommonPaginatedResponse 
+} from './user';
+
+export type PaginatedResponse<T> = CommonPaginatedResponse<T>;
 
 /**
  * Single Resource Response

@@ -13,7 +13,7 @@ interface ConnectionsTabProps {
 export function ConnectionsTab({ userId }: ConnectionsTabProps) {
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="shadow-none rounded-md">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Profile Section */}

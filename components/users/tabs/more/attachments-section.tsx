@@ -45,8 +45,8 @@ export function AttachmentsSection({ userId }: AttachmentsSectionProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="card shadow-none rounded-md">
+      <CardHeader className="card-header">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Attachments</CardTitle>
           <div className="flex gap-2">
@@ -103,7 +103,7 @@ export function AttachmentsSection({ userId }: AttachmentsSectionProps) {
                       {file.file_name}
                     </span>
                     <div className="flex items-center text-xs text-muted-foreground">
-                      <span>{(file.size / 1024).toFixed(1)} KB</span>
+                      <span>{file.human_size}</span>
                       <Dot className="h-3 w-3" />
                       <span>{file.created_at}</span>
                       <Dot className="h-3 w-3" />

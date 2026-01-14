@@ -34,8 +34,30 @@ export interface DashboardStats {
   recentActivities: ActivityLog[]
   chartData: {
     date: string
-    users: number
+    desktop: number
+    mobile: number
   }[]
+}
+
+export interface HrmDashboardStats {
+  users: {
+    total: number
+    active: number
+    inactive: number
+    new_last_30_days: number
+  }
+  departments: {
+    total: number
+    active: number
+  }
+  positions: {
+    total: number
+    active: number
+  }
+  teams: {
+    total: number
+    active: number
+  }
 }
 
 /**
@@ -66,47 +88,36 @@ export async function getDashboardData(): Promise<DashboardStats> {
     })
 
     // Fetch all data in parallel for better performance
-    // Note: Using Promise.allSettled to handle endpoints that might not exist yet
-    const results = await Promise.allSettled([
-      // User count - using users endpoint with per_page=1 to get total from meta
-      apiServer.get<PaginatedResponse<unknown>>('/users?per_page=1'),
-      
-      // HRM Department count
-      apiServer.get<PaginatedResponse<Department>>('/hrm/departments?per_page=1'),
-      
-      // HRM Position count
-      apiServer.get<PaginatedResponse<Position>>('/hrm/positions?per_page=1'),
-      
-      // HRM Team count
-      apiServer.get<PaginatedResponse<Team>>('/hrm/teams?per_page=1'),
+    const [statsRes, hrmRes, auditRes] = await Promise.allSettled([
+      apiServer.get<{ data: UserStats }>('/users/stats'),
+      apiServer.get<{ data: HrmDashboardStats }>('/hrm/reports/dashboard'),
+      apiServer.get<PaginatedResponse<ActivityLog>>('/hrm/audit-trail?per_page=5'),
     ])
 
-    // Extract user count from users pagination meta
-    const totalUsers = results[0].status === 'fulfilled' ? results[0].value.data.meta.total : 0
-    
-    // Build user stats from available data
-    const userStats: UserStats = {
-      total_users: totalUsers,
-      active_users: Math.floor(totalUsers * 0.8), // Estimation: 80% active
-      inactive_users: Math.floor(totalUsers * 0.2), // Estimation: 20% inactive
-      verified_users: Math.floor(totalUsers * 0.9), // Estimation: 90% verified
-      unverified_users: Math.floor(totalUsers * 0.1), // Estimation: 10% unverified
-      users_by_role: [], // TODO: Fetch from backend when endpoint available
+    // Extract user stats
+    const userStats: UserStats = statsRes.status === 'fulfilled' 
+      ? statsRes.value.data.data 
+      : getEmptyDashboardStats().userStats
+
+    // Extract HRM stats
+    let hrmStats = getEmptyDashboardStats().hrmStats
+    if (hrmRes.status === 'fulfilled') {
+      const data = hrmRes.value.data.data
+      hrmStats = {
+        total_departments: data.departments?.total || 0,
+        active_departments: data.departments?.active || 0,
+        total_positions: data.positions?.total || 0,
+        total_teams: data.teams?.total || 0,
+      }
     }
 
-    // Calculate HRM stats from pagination meta
-    const hrmStats = {
-      total_departments: results[1].status === 'fulfilled' ? results[1].value.data.meta.total : 0,
-      active_departments: results[1].status === 'fulfilled' ? results[1].value.data.meta.total : 0,
-      total_positions: results[2].status === 'fulfilled' ? results[2].value.data.meta.total : 0,
-      total_teams: results[3].status === 'fulfilled' ? results[3].value.data.meta.total : 0,
-    }
+    // Recent activities
+    const recentActivities: ActivityLog[] = auditRes.status === 'fulfilled'
+      ? auditRes.value.data.data
+      : []
 
-    // Recent activities - empty for now (endpoint not available yet)
-    const recentActivities: ActivityLog[] = []
-
-    // Generate chart data (last 7 days of user registrations)
-    const chartData = generateChartData(7)
+    // Chart data - use real trends from userStats
+    const chartData = userStats.registration_trends || []
 
     return {
       userStats,
@@ -135,6 +146,7 @@ function getEmptyDashboardStats(): DashboardStats {
       verified_users: 0,
       unverified_users: 0,
       users_by_role: [],
+      registration_trends: [],
     },
     hrmStats: {
       total_departments: 0,
@@ -147,26 +159,6 @@ function getEmptyDashboardStats(): DashboardStats {
   }
 }
 
-/**
- * Generate chart data for the last N days
- * TODO: Replace with real analytics endpoint from backend
- */
-function generateChartData(days: number) {
-  const data = []
-  const today = new Date()
-  
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    
-    data.push({
-      date: date.toISOString().split('T')[0],
-      users: Math.floor(Math.random() * 50) + 10, // Mock data
-    })
-  }
-  
-  return data
-}
 
 /**
  * Get user statistics only (for quick refresh)
@@ -198,6 +190,7 @@ export async function getUserStats(): Promise<UserStats> {
       verified_users: 0,
       unverified_users: 0,
       users_by_role: [],
+      registration_trends: [],
     }
   }
 }
@@ -230,10 +223,10 @@ export async function getHRMStats() {
     ])
 
     return {
-      total_departments: departmentsRes.data.meta.total,
-      active_departments: departmentsRes.data.meta.total,
-      total_positions: positionsRes.data.meta.total,
-      total_teams: teamsRes.data.meta.total,
+      total_departments: departmentsRes.data.meta?.total || departmentsRes.data.total || 0,
+      active_departments: departmentsRes.data.meta?.total || departmentsRes.data.total || 0,
+      total_positions: positionsRes.data.meta?.total || positionsRes.data.total || 0,
+      total_teams: teamsRes.data.meta?.total || teamsRes.data.total || 0,
     }
   } catch (error) {
     console.error('Error fetching HRM stats:', error)

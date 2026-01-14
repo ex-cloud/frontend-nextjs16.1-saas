@@ -464,18 +464,72 @@ export function useUserComments(
  * Hook to add a comment
  */
 export function useAddComment(
-  options?: UseMutationOptions<import('@/types/user').Comment, Error, { id: string; body: string }>
+  options?: UseMutationOptions<import('@/types/user').Comment, Error, { id: string; body: string; parent_id?: number | null }>
 ) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, body }) => userService.addComment(id, body),
+    mutationFn: ({ id, body, parent_id }) => userService.addComment(id, body, parent_id),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: userKeys.comments(variables.id) })
       toast.success('Comment added')
     },
     onError: (error) => {
       toast.error('Failed to add comment', { description: error.message })
+    },
+    ...options,
+  })
+}
+
+export function useUpdateComment(
+  options?: UseMutationOptions<import('@/types/user').Comment, Error, { userId: string; commentId: number; body: string }>
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ userId, commentId, body }) => userService.updateComment(userId, commentId, body),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.comments(variables.userId) })
+      toast.success('Comment updated')
+    },
+    onError: (error) => {
+      toast.error('Failed to update comment', { description: error.message })
+    },
+    ...options,
+  })
+}
+
+export function useDeleteComment(
+  options?: UseMutationOptions<void, Error, { userId: string; commentId: number }>
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ userId, commentId }) => userService.deleteComment(userId, commentId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.comments(variables.userId) })
+      toast.success('Comment deleted')
+    },
+    onError: (error) => {
+      toast.error('Failed to delete comment', { description: error.message })
+    },
+    ...options,
+  })
+}
+
+export function useClearComments(
+  options?: UseMutationOptions<void, Error, string>
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (userId) => userService.clearComments(userId),
+    onSuccess: (_, userId) => {
+      queryClient.invalidateQueries({ queryKey: userKeys.comments(userId) })
+      toast.success('All comments cleared')
+    },
+    onError: (error) => {
+      toast.error('Failed to clear comments', { description: error.message })
     },
     ...options,
   })

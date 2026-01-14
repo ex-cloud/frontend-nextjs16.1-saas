@@ -111,7 +111,7 @@ export function DepartmentTable({
           ? {
               from: data.from ?? undefined,
               to: data.to ?? undefined,
-              total: data.total,
+              total: data.total || 0,
               currentPage: filters.page || 1,
               lastPage: data.last_page || 1,
               resourceName: "departments",

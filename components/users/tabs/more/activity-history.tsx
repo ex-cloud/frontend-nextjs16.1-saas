@@ -2,56 +2,84 @@
 
 import { useUserActivities } from "@/lib/hooks/use-users";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { ActivityHistoryItem } from "./activity-history-item";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface ActivityHistoryProps {
   userId: string;
 }
 
 export function ActivityHistory({ userId }: ActivityHistoryProps) {
-  const { data: activities, isLoading } = useUserActivities(userId);
+  const {
+    data: activities,
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useUserActivities(userId);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Activity History</CardTitle>
+    <Card className="card shadow-none rounded-md">
+      <CardHeader className="card-header flex items-center justify-between space-y-0 pb-4">
+        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          Activity History
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground hidden sm:inline-block">
+            Auto-updated
+          </span>
+          <button
+            onClick={() => refetch()}
+            disabled={isLoading || isRefetching}
+            className="p-1.5 hover:bg-muted rounded-full transition-colors disabled:opacity-50"
+            title="Sync/Refresh Activities"
+          >
+            <Loader2
+              className={cn(
+                "h-4 w-4",
+                (isLoading || isRefetching) && "animate-spin"
+              )}
+            />
+            <span className="sr-only">Refresh</span>
+          </button>
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-6 relative">
-          <div className="absolute left-4 top-0 bottom-0 w-px bg-border" />
+      <CardContent className="">
+        <div className="space-y-6">
           {isLoading ? (
-            <div className="flex justify-center p-4">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : activities?.data?.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No recent activity.
-            </p>
+            <div className="text-center py-10 border rounded-lg bg-muted/10 border-dashed">
+              <p className="text-sm text-muted-foreground">
+                No recent activity found.
+              </p>
+            </div>
           ) : (
-            activities?.data?.map((log) => (
-              <div key={log.id} className="relative pl-10">
-                <div className="absolute left-2.5 top-1.5 h-3 w-3 rounded-full border border-background bg-slate-400 z-10" />
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 text-sm justify-between">
-                    <span className="font-medium text-foreground">
-                      {log.description}
-                    </span>
-                    <span className="text-muted-foreground text-xs whitespace-nowrap">
-                      {format(new Date(log.created_at), "MMM d, h:mm a")}
-                    </span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Caused by: {log.causer?.name || "System"}
-                  </div>
-                  {log.properties && Object.keys(log.properties).length > 0 && (
-                    <div className="mt-1 p-2 bg-muted/40 rounded text-xs font-mono overflow-x-auto">
-                      {JSON.stringify(log.properties, null, 2)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
+            <div className="relative pt-2 pb-6">
+              {activities?.data?.slice(0, 5).map((log, index, arr) => (
+                <ActivityHistoryItem
+                  key={log.id}
+                  log={log}
+                  isLast={index === arr.length - 1}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* View Full Audit Log Footer */}
+          {!isLoading && activities?.data && activities.data.length > 0 && (
+            <div className="pt-4 border-t flex justify-center">
+              <Link
+                href={`/dashboard/users/${userId}/audit`}
+                className="group flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                View Full Audit Log
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
           )}
         </div>
       </CardContent>

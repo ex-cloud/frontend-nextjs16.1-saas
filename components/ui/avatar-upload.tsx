@@ -292,7 +292,7 @@ export function AvatarUpload({
             <input {...getInputProps()} aria-label="Upload avatar image" />
 
             {preview ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/5 w-full h-full">
+              <div className="absolute inset-0 flex items-center justify-center w-full h-full">
                 {/* Using standard img tag to avoid Next.js domain config issues during dev */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

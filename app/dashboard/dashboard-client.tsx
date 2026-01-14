@@ -9,13 +9,15 @@
 
 import { LazyChartAreaInteractive } from "@/lib/lazy-components";
 import { DashboardStats } from "./actions";
+import { UserMetricsChart } from "@/components/user-metrics-chart";
+import { UserRolesChart } from "@/components/user-roles-chart";
 
 interface DashboardClientProps {
   data: DashboardStats;
 }
 
 export function DashboardClient({ data }: DashboardClientProps) {
-  const { userStats, hrmStats, recentActivities } = data;
+  const { userStats, hrmStats, recentActivities, chartData } = data;
 
   // Transform stats for SectionCards format
   const cardData = [
@@ -56,21 +58,40 @@ export function DashboardClient({ data }: DashboardClientProps) {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         {cardData.map((card, index) => (
-          <div key={index} className="rounded-lg border bg-card p-4">
-            <p className="text-sm text-muted-foreground">{card.title}</p>
-            <h3 className="text-2xl font-bold mt-2">{card.value}</h3>
-            <p className="text-sm mt-2">{card.change}</p>
+          <div
+            key={index}
+            className="rounded-lg border bg-card p-4 glass-card fade-in-up shadow-sm hover:shadow-md transition-all duration-300"
+            style={{ animationDelay: `${index * 0.1}s` }}
+          >
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              {card.title}
+            </p>
+            <h3 className="text-3xl font-extrabold mt-2 tracking-tight">
+              {card.value}
+            </h3>
+            <p
+              className={`text-xs mt-2 font-semibold ${
+                card.changeType === "positive"
+                  ? "text-green-600"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {card.change}
+            </p>
           </div>
         ))}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <div className="col-span-4">
-          <LazyChartAreaInteractive />
+          <LazyChartAreaInteractive data={chartData} />
         </div>
 
         <div className="col-span-3">
-          <div className="rounded-lg border bg-card p-4">
+          <div
+            className="rounded-lg border bg-card p-4 glass-card fade-in-up h-full"
+            style={{ animationDelay: "0.4s" }}
+          >
             <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
             {recentActivities.length > 0 ? (
               <div className="space-y-3">
@@ -97,30 +118,14 @@ export function DashboardClient({ data }: DashboardClientProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border bg-card p-4">
-          <h3 className="text-lg font-semibold mb-4">Users by Role</h3>
-          <div className="space-y-2">
-            {userStats.users_by_role.map((item) => (
-              <div
-                key={item.role}
-                className="flex items-center justify-between"
-              >
-                <span className="text-sm text-muted-foreground capitalize">
-                  {item.role}
-                </span>
-                <span className="font-medium">{item.count}</span>
-              </div>
-            ))}
-            {userStats.users_by_role.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No role data available
-              </p>
-            )}
-          </div>
-        </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <UserMetricsChart stats={userStats} />
+        <UserRolesChart data={userStats.users_by_role} />
 
-        <div className="rounded-lg border bg-card p-4">
+        <div
+          className="rounded-lg border bg-card p-4 glass-card fade-in-up"
+          style={{ animationDelay: "0.6s" }}
+        >
           <h3 className="text-lg font-semibold mb-4">HRM Overview</h3>
           <div className="space-y-2">
             <div className="flex items-center justify-between">

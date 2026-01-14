@@ -13,6 +13,7 @@ import {
   Building,
   Briefcase,
   Users as UsersGroup,
+  FolderKanban,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import NextImage from "next/image";
@@ -50,6 +51,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Dashboard",
       url: "/dashboard",
       icon: LayoutDashboard,
+      roles: ["*"],
+    },
+    {
+      title: "Projects",
+      url: "/dashboard/projects",
+      icon: FolderKanban,
       roles: ["*"],
     },
   ].filter((item) => hasRole(item.roles));
@@ -177,7 +184,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenu>
         </SidebarHeader>
         <SidebarContent>
-          <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+          <div className="p-4 space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-8 w-full bg-sidebar-accent/50 animate-pulse rounded-md"
+              />
+            ))}
+          </div>
         </SidebarContent>
         <SidebarFooter>
           <NavUser user={userData} />

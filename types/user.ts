@@ -25,8 +25,10 @@ export interface UserTag {
 
 export interface Comment {
   id: number;
+  parent_id?: number | null;
   body: string;
   author: {
+    id: number | string;
     name: string;
     avatar?: string;
   } | null;
@@ -38,6 +40,7 @@ export interface Attachment {
   id: number;
   file_name: string;
   size: number;
+  human_size: string;
   mime_type: string;
   url: string;
   created_at: string;
@@ -127,10 +130,17 @@ export interface ApiResponse<T> {
 
 export interface PaginatedResponse<T> {
   data: T[];
-  links: PaginationLinks;
-  meta: PaginationMeta;
+  links?: PaginationLinks;
+  meta?: PaginationMeta;
   success?: boolean;
   message?: string;
+  // Flatter properties used by some HRM endpoints
+  current_page?: number;
+  last_page?: number;
+  per_page?: number;
+  total?: number;
+  from?: number;
+  to?: number;
 }
 
 // Request types
@@ -229,18 +239,30 @@ export interface ChangePasswordInput {
   new_password_confirmation: string;
 }
 
-// Activity Log type
+// Activity Log type - matches HrmAuditService.formatActivity output
 export interface ActivityLog {
-  id: string;
+  id: string | number;
   log_name: string;
   description: string;
-  subject_type: string;
-  subject_id: string;
-  causer_type: string;
-  causer_id: string;
+  event?: string;
+  subject_type?: string;  // For UserController.activities response
+  subject_id?: string;    // For UserController.activities response
+  subject?: {             // For AuditTrailController response (formatted)
+    type: string;
+    id: string | number;
+    name: string | null;
+  } | null;
+  causer_type?: string;
+  causer_id?: string;
+  causer?: {
+    id: string | number;
+    name: string;
+    email?: string;
+    avatar_url?: string;
+  } | null;
   properties: Record<string, unknown>;
   created_at: string;
-  causer?: User;
+  created_at_human: string;
 }
 
 // User Statistics
@@ -253,5 +275,10 @@ export interface UserStats {
   users_by_role: Array<{
     role: string;
     count: number;
+  }>;
+  registration_trends: Array<{
+    date: string;
+    desktop: number;
+    mobile: number;
   }>;
 }

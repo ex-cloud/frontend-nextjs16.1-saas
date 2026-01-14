@@ -13,6 +13,11 @@ export function getProxyImageUrl(url: string | null) {
   if (!url) return "";
   if (url.startsWith("blob:") || url.startsWith("data:")) return url;
 
+  // Handle relative paths for storage
+  if (url.startsWith("/storage/")) {
+    return url.replace(/^\/storage/, "/laravel-storage");
+  }
+
   try {
     // Parse the backend URL to get structured data (host, port, etc.)
     const backendUrlString = getBackendUrl();

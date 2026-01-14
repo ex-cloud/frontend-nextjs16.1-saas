@@ -244,9 +244,22 @@ export const userService = {
     return response.data.data
   },
 
-  addComment: async (id: string, body: string): Promise<Comment> => {
-    const response = await api.post<ApiResponse<Comment>>(`${USERS_ENDPOINT}/${id}/comments`, { body })
+  addComment: async (id: string, body: string, parent_id?: number | null): Promise<Comment> => {
+    const response = await api.post<ApiResponse<Comment>>(`${USERS_ENDPOINT}/${id}/comments`, { body, parent_id })
     return response.data.data
+  },
+
+  updateComment: async (userId: string, commentId: number, body: string): Promise<Comment> => {
+    const response = await api.put<ApiResponse<Comment>>(`${USERS_ENDPOINT}/${userId}/comments/${commentId}`, { body })
+    return response.data.data
+  },
+
+  deleteComment: async (userId: string, commentId: number): Promise<void> => {
+    await api.delete(`${USERS_ENDPOINT}/${userId}/comments/${commentId}`)
+  },
+
+  clearComments: async (userId: string): Promise<void> => {
+    await api.delete(`${USERS_ENDPOINT}/${userId}/comments`)
   },
 
   getAttachments: async (id: string): Promise<Attachment[]> => {

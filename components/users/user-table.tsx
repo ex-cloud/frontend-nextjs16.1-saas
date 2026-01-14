@@ -167,7 +167,7 @@ export function UserTable({
       rowSelection,
     },
     manualPagination: true,
-    pageCount: data?.meta.last_page || 1,
+    pageCount: data?.meta?.last_page || data?.last_page || 1,
   });
 
   // Handle refetch
@@ -479,8 +479,9 @@ export function UserTable({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <p className="text-sm text-muted-foreground">
-              Showing {data.meta.from || 0} to {data.meta.to || 0} of{" "}
-              {data.meta.total} users
+              Showing {data.meta?.from || data.from || 0} to{" "}
+              {data.meta?.to || data.to || 0} of{" "}
+              {data.meta?.total || data.total || 0} users
             </p>
             <Select
               value={String(filters.per_page)}
@@ -508,12 +509,15 @@ export function UserTable({
               Previous
             </Button>
             <div className="flex items-center gap-1">
-              {Array.from({ length: data.meta.last_page }, (_, i) => i + 1)
+              {Array.from(
+                { length: data.meta?.last_page || data.last_page || 1 },
+                (_, i) => i + 1
+              )
                 .filter((page) => {
                   const current = filters.page || 1;
                   return (
                     page === 1 ||
-                    page === data.meta.last_page ||
+                    page === (data.meta?.last_page || data.last_page || 1) ||
                     (page >= current - 1 && page <= current + 1)
                   );
                 })
@@ -550,7 +554,9 @@ export function UserTable({
               variant="outline"
               size="sm"
               onClick={() => handlePageChange(filters.page! + 1)}
-              disabled={filters.page === data.meta.last_page}
+              disabled={
+                filters.page === (data.meta?.last_page || data.last_page || 1)
+              }
             >
               Next
             </Button>

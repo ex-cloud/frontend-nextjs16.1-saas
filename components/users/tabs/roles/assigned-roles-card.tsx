@@ -36,7 +36,10 @@ export function AssignedRolesCard({
   }, [availableRoles, filterQuery]);
 
   return (
-    <Card className="shadow-none border">
+    <Card
+      className="shadow-none border rounded-md glass-card fade-in-up"
+      style={{ animationDelay: "0.1s" }}
+    >
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div>
