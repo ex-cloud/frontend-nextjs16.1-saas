@@ -2,15 +2,16 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { projectService } from "@/lib/api/services/project.service";
 import { departmentApi } from "@/lib/api/departments";
 import {
-  Project,
   CreateProjectInput,
   ProjectStatus,
   ProjectPriority,
 } from "@/types/project";
-import { Department, User, PaginatedResponse } from "@/types/hrm";
+import { User as HrmUser } from "@/types/hrm";
+import { User as AppUser } from "@/types/user";
 import {
   Card,
   CardContent,
@@ -58,92 +59,87 @@ import {
 } from "@/components/ui/popover";
 import { DeleteProjectDialog } from "@/components/projects/modals/DeleteProjectDialog";
 import { AddMemberDialog } from "@/components/projects/modals/AddMemberDialog";
-import { ProjectMember } from "@/types/project";
 
 export default function ProjectSettingsPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [project, setProject] = React.useState<Project | null>(null);
-  const [departments, setDepartments] = React.useState<Department[]>([]);
-  const [availableOwners, setAvailableOwners] = React.useState<User[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
-  const [explicitMembers, setExplicitMembers] = React.useState<ProjectMember[]>(
-    []
-  );
   const [showAddMemberDialog, setShowAddMemberDialog] = React.useState(false);
-  const [loadingMembers, setLoadingMembers] = React.useState(false);
+  const [selectedDate, setSelectedDate] = React.useState<Date | undefined>();
 
-  const loadMembers = React.useCallback(async () => {
-    setLoadingMembers(true);
-    try {
-      const data = await projectService.getProjectMembers(String(id));
-      setExplicitMembers(data);
-    } catch (error) {
-      console.error("Failed to load members:", error);
-    } finally {
-      setLoadingMembers(false);
-    }
-  }, [id]);
+  const { data: project, isLoading: loadingProject } = useQuery({
+    queryKey: ["project", id],
+    queryFn: () => projectService.getProject(String(id)),
+    staleTime: 60000,
+  });
 
+  const { data: departmentsResponse, isLoading: loadingDepts } = useQuery({
+    queryKey: ["departments"],
+    queryFn: () => departmentApi.list({ per_page: 50 }),
+    staleTime: 300000,
+  });
+
+  const {
+    data: explicitMembers = [],
+    isLoading: loadingMembers,
+    refetch: refetchMembers,
+  } = useQuery({
+    queryKey: ["project-members", id],
+    queryFn: () => projectService.getProjectMembers(String(id)),
+    staleTime: 30000,
+  });
+
+  // State to track currently selected department in the form (for owners dropdown)
+  const [selectedDeptId, setSelectedDeptId] = React.useState<
+    string | undefined
+  >(project?.department_id?.toString());
+
+  const deptId = project?.department_id;
+  const dueDateStr = project?.due_date;
+
+  // Sync selectedDeptId and selectedDate with project data once loaded
   React.useEffect(() => {
-    async function loadData() {
-      try {
-        const [projData, deptData] = (await Promise.all([
-          projectService.getProject(String(id)),
-          departmentApi.list({ per_page: 50 }),
-        ])) as [Project, PaginatedResponse<Department>];
+    if (deptId) {
+      setSelectedDeptId((prev) => {
+        const next = deptId.toString();
+        return prev === next ? prev : next;
+      });
+    }
+    if (dueDateStr) {
+      setSelectedDate((prev) => {
+        const next = new Date(dueDateStr);
+        if (prev?.getTime() === next.getTime()) return prev;
+        return next;
+      });
+    }
+  }, [deptId, dueDateStr]);
 
-        setProject(projData);
+  const { data: ownersRes } = useQuery({
+    queryKey: ["department-users", selectedDeptId],
+    queryFn: () => departmentApi.getUsers(Number(selectedDeptId)),
+    enabled: !!selectedDeptId,
+    staleTime: 300000,
+  });
 
-        // Handle response for departments
-        const depts = deptData.data || [];
-        setDepartments(depts);
-
-        if (projData.department_id) {
-          try {
-            const ownersRes = (await departmentApi.getUsers(
-              Number(projData.department_id)
-            )) as PaginatedResponse<User>;
-
-            let users = ownersRes.data || [];
-
-            // Ensure current owner is in the list
-            if (projData.owner) {
-              const currentOwner = projData.owner as unknown as User;
-              const exists = users.find((u) => u.id === currentOwner.id);
-              if (!exists) {
-                users = [currentOwner, ...users];
-              }
-            }
-
-            setAvailableOwners(users);
-          } catch (error) {
-            console.error("Failed to load department users:", error);
-            if (projData.owner) {
-              setAvailableOwners([projData.owner as unknown as User]);
-            }
-          }
-        } else if (projData.owner) {
-          setAvailableOwners([projData.owner as unknown as User]);
-        }
-      } catch (err) {
-        console.error("Failed to load project:", err);
-        // toast.error("Failed to load project details");
-      } finally {
-        setLoading(false);
+  const availableOwners = React.useMemo(() => {
+    const users: (HrmUser | AppUser)[] = [...(ownersRes?.data || [])];
+    const currentOwner = project?.owner;
+    if (currentOwner) {
+      if (!users.find((u) => String(u.id) === String(currentOwner.id))) {
+        users.unshift(currentOwner as AppUser);
       }
     }
-    loadData();
-    loadMembers();
-  }, [id, loadMembers]);
+    return users;
+  }, [ownersRes, project?.owner]);
+
+  const loading = loadingProject || loadingDepts;
 
   const handleRemoveMember = async (userId: string | number) => {
     try {
       await projectService.removeProjectMember(String(id), userId);
       toast.success("Member removed");
-      loadMembers();
+      refetchMembers();
     } catch {
       toast.error("Failed to remove member");
     }
@@ -292,19 +288,15 @@ export default function ProjectSettingsPage() {
                       <Label htmlFor="department_id">Department</Label>
                       <Select
                         name="department_id"
-                        defaultValue={String(project.department_id || "")}
-                        onValueChange={async (val) => {
-                          const ownersRes = (await departmentApi.getUsers(
-                            Number(val)
-                          )) as PaginatedResponse<User>;
-                          setAvailableOwners(ownersRes.data || []);
-                        }}
+                        value={selectedDeptId || ""}
+                        onValueChange={setSelectedDeptId}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select Department" />
                         </SelectTrigger>
                         <SelectContent>
-                          {departments.map((dept) => (
+                          <SelectItem value="none">No Department</SelectItem>
+                          {(departmentsResponse?.data || []).map((dept) => (
                             <SelectItem key={dept.id} value={String(dept.id)}>
                               {dept.name}
                             </SelectItem>
@@ -351,8 +343,8 @@ export default function ProjectSettingsPage() {
                               !project.due_date && "text-muted-foreground"
                             )}
                           >
-                            {project.due_date ? (
-                              format(new Date(project.due_date), "PPP")
+                            {selectedDate ? (
+                              format(selectedDate, "PPP")
                             ) : (
                               <span>Pick a date</span>
                             )}
@@ -362,18 +354,8 @@ export default function ProjectSettingsPage() {
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={
-                              project.due_date
-                                ? new Date(project.due_date)
-                                : undefined
-                            }
-                            onSelect={(date) => {
-                              // Direct update to state to reflect change immediately
-                              setProject({
-                                ...project,
-                                due_date: date ? date.toISOString() : undefined,
-                              });
-                            }}
+                            selected={selectedDate}
+                            onSelect={setSelectedDate}
                             disabled={(date) => date < new Date("1900-01-01")}
                             initialFocus
                           />
@@ -383,7 +365,7 @@ export default function ProjectSettingsPage() {
                       <input
                         type="hidden"
                         name="due_date"
-                        value={project.due_date || ""}
+                        value={selectedDate ? selectedDate.toISOString() : ""}
                       />
                     </div>
                     <div className="space-y-2">
@@ -760,7 +742,7 @@ export default function ProjectSettingsPage() {
           projectId={String(id)}
           open={showAddMemberDialog}
           onOpenChange={setShowAddMemberDialog}
-          onSuccess={loadMembers}
+          onSuccess={() => refetchMembers()}
           departmentId={project.department_id}
         />
       )}

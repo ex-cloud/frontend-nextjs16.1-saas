@@ -1,11 +1,16 @@
-import { Department } from './hrm';
-import { User } from './user';
+import { Department } from "./hrm";
+import { User } from "./user";
 
-export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'archived';
-export type ProjectPriority = 'low' | 'medium' | 'high' | 'critical';
-export type TaskType = 'task' | 'bug' | 'story' | 'epic';
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
-export type ProjectMemberRole = 'manager' | 'member' | 'observer';
+export type ProjectStatus =
+  | "planning"
+  | "active"
+  | "on_hold"
+  | "completed"
+  | "archived";
+export type ProjectPriority = "low" | "medium" | "high" | "critical";
+export type TaskType = "task" | "bug" | "story" | "epic";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
+export type ProjectMemberRole = "manager" | "member" | "observer";
 
 export interface Project {
   id: string | number;
@@ -21,24 +26,24 @@ export interface Project {
   department_id?: string | number;
   team_id?: string | number;
   progress: number;
-  
+
   // Relationships
   owner?: User;
   department?: Department; // To be refined if needed
   members?: User[];
   explicit_members?: ProjectMember[];
-  
+
   permissions?: {
     can_edit: boolean;
     can_delete: boolean;
     can_manage_members: boolean;
   };
   boards?: Board[];
-  
+
   // Stats
   tasks_count?: number;
   members_count?: number;
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -52,10 +57,10 @@ export interface Board {
   is_default: boolean;
   position: number;
   settings?: Record<string, unknown>;
-  
+
   // Relationships
   lists?: TaskList[];
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -69,13 +74,13 @@ export interface TaskList {
   color?: string;
   position: number;
   wip_limit?: number;
-  
+
   // Relationships
   tasks?: Task[];
-  
+
   // Stats
   tasks_count?: number;
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -100,14 +105,14 @@ export interface Task {
   estimated_hours?: number;
   story_points?: number;
   tags?: string[];
-  
+
   // Relationships
   assignee?: User;
   reporter?: User;
   subtasks?: Task[];
   blockers?: TaskDependency[];
   blocking?: TaskDependency[];
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -117,11 +122,11 @@ export interface TaskDependency {
   task_id: string | number;
   blocker_task_id: string | number;
   dependency_type: string;
-  
+
   // Relationships
   task?: Task;
   blocker_task?: Task;
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -135,11 +140,11 @@ export interface TimeLog {
   duration_minutes?: number;
   description?: string;
   is_manual: boolean;
-  
+
   // Relationships
   task?: Task;
   user?: User;
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -151,7 +156,7 @@ export interface ProjectFilters {
   owner_id?: string | number;
   department_id?: string | number;
   sort_by?: string;
-  sort_order?: 'asc' | 'desc';
+  sort_order?: "asc" | "desc";
   page?: number;
   per_page?: number;
   only_trashed?: boolean;
@@ -195,10 +200,13 @@ export interface TimeSummaryResponse {
   total_minutes: number;
   total_hours: number;
   logs_by_date: Record<string, number>;
-  logs_by_task: Record<string, {
-    task_title: string;
-    minutes: number;
-  }>;
+  logs_by_task: Record<
+    string,
+    {
+      task_title: string;
+      minutes: number;
+    }
+  >;
 }
 
 export interface Comment {
@@ -210,35 +218,24 @@ export interface Comment {
   children?: Comment[];
 }
 export interface ProjectMember {
-  id: string | number; // This is the ID of the membership record (or the user ID if simplified, but Resource suggests pivot structure)
-  user_id: string | number;
-  project_id: string | number;
-  
+  id: string | number; // This is the User ID in our current ProjectMemberResource
+  user_id?: string | number; // Backward compatibility, use id instead
+  project_id?: string | number;
+
   // The user object is nested
-  user?: User; 
-  
-  // Pivot details are often at the top level in the resource, 
-  // OR nested in 'membership' if I mapped it that way?
-  // Checking ProjectMemberResource.php (Step 9307):
-  // returns: 'role' => $this->role, 
-  // returns: 'user' => new UserResource(...)
-  // So 'role' is top-level in the JSON.
-  
-  role: ProjectMemberRole;
+  user?: User;
+
+  // Pivot details are flat in the Resource output
+  role?: ProjectMemberRole;
   assigned_at?: string;
   is_team_assignment?: boolean;
-  
-  // If we want to keep backward compatibility with "membership" access pattern 
-  // or if we used it in the frontend, we might need to adjust.
-  // But ProjectMemberResource output is flat + nested user.
-  
-  // Let's align with the actual Resource output we saw earlier or inferred:
-  // Resource has: id, project_id, user_id, role, assigned_at, user(object), team(object)
-  
-  membership?: { // Accessor for consistency if needed, but better to use flat props if API is flat
-      role: ProjectMemberRole;
-      assigned_at: string;
-      team_id?: string | number | null;
+  team_id?: string | number | null;
+
+  // Kept for consistency with older code if any
+  membership?: {
+    role: ProjectMemberRole;
+    assigned_at: string;
+    team_id?: string | number | null;
   };
 }
 

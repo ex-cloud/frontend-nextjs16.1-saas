@@ -1,59 +1,44 @@
 "use client";
 
 import * as React from "react";
-import { projectService } from "@/lib/api/services/project.service";
-import type { Project, Board, TaskList } from "@/types/project";
 import { KanbanBoard } from "@/components/projects/kanban/KanbanBoard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { RefreshCcw, Settings, Plus, Columns, Share2 } from "lucide-react";
-import { toast } from "sonner";
+// import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 
 interface KanbanClientProps {
   projectId: string;
 }
 
+import {
+  useProject,
+  useProjectBoards,
+  useBoardLists,
+} from "@/hooks/use-projects";
+
 export function KanbanClient({ projectId }: KanbanClientProps) {
-  const [project, setProject] = React.useState<Project | null>(null);
-  const [, setBoards] = React.useState<Board[]>([]);
-  const [activeBoard, setActiveBoard] = React.useState<Board | null>(null);
-  const [lists, setLists] = React.useState<TaskList[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const { data: project, isLoading: loadingProject } = useProject(projectId);
+  const { data: boards, isLoading: loadingBoards } =
+    useProjectBoards(projectId);
 
-  const fetchProjectData = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      // 1. Fetch Project
-      const projectData = await projectService.getProject(projectId);
-      setProject(projectData);
+  const activeBoard = React.useMemo(() => {
+    if (!boards) return null;
+    return boards.find((b) => b.is_default) || boards[0] || null;
+  }, [boards]);
 
-      // 2. Fetch Boards
-      const boardsData = await projectService.getProjectBoards(projectId);
-      setBoards(boardsData);
+  const {
+    data: lists = [],
+    isLoading: loadingLists,
+    refetch: refetchLists,
+  } = useBoardLists(activeBoard?.id || "");
 
-      console.log(`Loaded ${boardsData.length} boards`);
+  const loading = loadingProject || loadingBoards || loadingLists;
 
-      // 3. Set Active Board (default or first)
-      const defaultBoard =
-        boardsData.find((b) => b.is_default) || boardsData[0];
-      if (defaultBoard) {
-        setActiveBoard(defaultBoard);
-        // 4. Fetch Lists & Tasks
-        const listsData = await projectService.getBoardLists(defaultBoard.id);
-        setLists(listsData);
-      }
-    } catch (error) {
-      console.error("Failed to fetch kanban data:", error);
-      toast.error("Failed to load project board");
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  React.useEffect(() => {
-    fetchProjectData();
-  }, [fetchProjectData]);
+  const handleRefresh = React.useCallback(() => {
+    refetchLists();
+  }, [refetchLists]);
 
   if (loading) {
     return (
@@ -106,7 +91,7 @@ export function KanbanClient({ projectId }: KanbanClientProps) {
               <Share2 className="h-4 w-4" />
               Share
             </Button>
-            <Button variant="outline" size="icon" onClick={fetchProjectData}>
+            <Button variant="outline" size="icon" onClick={handleRefresh}>
               <RefreshCcw className="h-4 w-4" />
             </Button>
             <Button size="sm" className="gap-2">
@@ -129,7 +114,7 @@ export function KanbanClient({ projectId }: KanbanClientProps) {
           <KanbanBoard
             initialLists={lists}
             board={{ id: activeBoard.id, project_id: activeBoard.project_id }}
-            onRefresh={fetchProjectData}
+            onRefresh={handleRefresh}
           />
         )}
       </div>

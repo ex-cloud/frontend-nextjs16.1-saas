@@ -14,23 +14,48 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Calendar,
   Clock,
   MessageSquare,
   History,
   Play,
-  Plus,
   CheckCircle2,
   Trash2,
   Send,
+  Loader2,
+  Calendar as CalendarIcon,
 } from "lucide-react";
-import type { Task, Comment, TimeLog } from "@/types/project";
+import type { Task, Comment, TimeLog, ProjectMember } from "@/types/project";
 import { taskService } from "@/lib/api/services/task.service";
+import { projectService } from "@/lib/api/services/project.service";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
+import axios from "axios";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 
 interface TaskSheetProps {
   task: Task | null;
@@ -60,6 +85,12 @@ export function TaskSheet({
   const [editedTitle, setEditedTitle] = React.useState("");
   const [editedDesc, setEditedDesc] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [projectMembers, setProjectMembers] = React.useState<ProjectMember[]>(
+    []
+  );
+  const [isCompleting, setIsCompleting] = React.useState(false);
+  const [isTogglingTimer, setIsTogglingTimer] = React.useState(false);
 
   const fetchActivity = React.useCallback(async () => {
     if (task) {
@@ -94,54 +125,104 @@ export function TaskSheet({
     }
   }, [task]);
 
+  const fetchMembers = React.useCallback(async () => {
+    if (task) {
+      try {
+        const members = await projectService.getProjectMembers(
+          String(task.project_id)
+        );
+        setProjectMembers(members);
+      } catch (error) {
+        console.error("Failed to fetch project members:", error);
+      }
+    }
+  }, [task]);
+
+  const checkRunningTimer = React.useCallback(async () => {
+    if (task) {
+      try {
+        const response = await taskService.getActiveTimer();
+        if (
+          response.is_running &&
+          String(response.data?.task_id) === String(task.id)
+        ) {
+          setIsTimerRunning(true);
+        } else {
+          setIsTimerRunning(false);
+        }
+      } catch {
+        setIsTimerRunning(false);
+      }
+    }
+  }, [task]);
+
   React.useEffect(() => {
     if (open && task) {
       fetchActivity();
       fetchComments();
       fetchTimeLogs();
+      fetchMembers();
+      checkRunningTimer();
       setEditedTitle(task.title);
       setEditedDesc(task.description || "");
     }
-  }, [open, task, fetchActivity, fetchComments, fetchTimeLogs]);
+  }, [
+    open,
+    task,
+    fetchActivity,
+    fetchComments,
+    fetchTimeLogs,
+    fetchMembers,
+    checkRunningTimer,
+  ]);
 
   if (!task) return null;
 
   const handleToggleTimer = async () => {
     try {
+      setIsTogglingTimer(true);
       const res = await taskService.toggleTimeTracking(task.id);
       setIsTimerRunning(res.is_running);
       toast.success(res.is_running ? "Timer started" : "Timer stopped");
       fetchTimeLogs();
       fetchActivity();
-    } catch {
-      toast.error("Failed to toggle timer");
+    } catch (error: unknown) {
+      let message = "Failed to toggle timer";
+      if (axios.isAxiosError(error)) {
+        message = error.response?.data?.message || message;
+      }
+      toast.error(message);
+    } finally {
+      setIsTogglingTimer(false);
     }
   };
 
   const handleComplete = async () => {
     try {
-      // Use 'done' to match Kanban column slugs (done, completed, finish)
+      setIsCompleting(true);
       await taskService.updateTask(task.id, { status: "done" });
       toast.success("Task completed!");
-      // Wait for refresh before closing to ensure UI updates
-      if (onRefresh) {
-        await onRefresh();
-      }
+      if (onRefresh) await onRefresh();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to complete task:", error);
       toast.error("Failed to complete task");
+    } finally {
+      setIsCompleting(false);
     }
   };
 
-  const handleUpdate = async (field: "title" | "description") => {
+  const handleUpdate = async (
+    field: string,
+    value: string | number | null | undefined
+  ) => {
     try {
       await taskService.updateTask(task.id, {
-        [field]: field === "title" ? editedTitle : editedDesc,
+        [field]: value,
       });
       setIsEditingTitle(false);
       setIsEditingDesc(false);
-      toast.success("Task updated");
+      toast.success(`${field.replace("_", " ")} updated`);
       if (onRefresh) onRefresh();
     } catch {
       toast.error("Update failed");
@@ -149,15 +230,16 @@ export function TaskSheet({
   };
 
   const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this task?")) {
-      try {
-        await taskService.deleteTask(task.id);
-        toast.success("Task deleted");
-        if (onRefresh) onRefresh();
-        onOpenChange(false);
-      } catch {
-        toast.error("Delete failed");
-      }
+    try {
+      setIsDeleting(true);
+      await taskService.deleteTask(task.id);
+      toast.success("Task deleted");
+      if (onRefresh) onRefresh();
+      onOpenChange(false);
+    } catch {
+      toast.error("Delete failed");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -169,23 +251,12 @@ export function TaskSheet({
       setNewComment("");
       fetchComments();
       fetchActivity();
-    } catch (error) {
-      console.error("Failed to add comment:", error);
-      // Type-safe error handling without using `any`
-      let errorMessage = "Failed to add comment";
-      if (error instanceof Error) {
-        errorMessage = error.message;
+    } catch (error: unknown) {
+      let message = "Failed to add comment";
+      if (axios.isAxiosError(error)) {
+        message = error.response?.data?.message || message;
       }
-      // Check for axios-like response structure
-      if (typeof error === "object" && error !== null && "response" in error) {
-        const axiosError = error as {
-          response?: { data?: { message?: string } };
-        };
-        if (axiosError.response?.data?.message) {
-          errorMessage = axiosError.response.data.message;
-        }
-      }
-      toast.error(errorMessage);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -209,8 +280,11 @@ export function TaskSheet({
                   size="sm"
                   className="h-8 gap-2"
                   onClick={handleToggleTimer}
+                  disabled={isTogglingTimer}
                 >
-                  {isTimerRunning ? (
+                  {isTogglingTimer ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : isTimerRunning ? (
                     <Clock className="h-3.5 w-3.5 animate-pulse" />
                   ) : (
                     <Play className="h-3.5 w-3.5" />
@@ -221,26 +295,58 @@ export function TaskSheet({
                   size="sm"
                   className="h-8 gap-2"
                   onClick={handleComplete}
+                  disabled={isCompleting || task.status === "done"}
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Complete
+                  {isCompleting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  )}
+                  {task.status === "done" ? "Completed" : "Complete"}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={handleDelete}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      disabled={isDeleting}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Are you absolutely sure?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently
+                        delete the task &quot;{task.title}&quot; and remove all
+                        associated data.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete Task
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
             {isEditingTitle ? (
               <Input
                 value={editedTitle}
                 onChange={(e) => setEditedTitle(e.target.value)}
-                onBlur={() => handleUpdate("title")}
-                onKeyDown={(e) => e.key === "Enter" && handleUpdate("title")}
+                onBlur={() => handleUpdate("title", editedTitle)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && handleUpdate("title", editedTitle)
+                }
                 autoFocus
                 className="text-2xl font-semibold h-auto py-1 px-2 -ml-2"
               />
@@ -314,31 +420,75 @@ export function TaskSheet({
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Assignee
                   </span>
-                  <div className="flex items-center gap-2 pt-1">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage
-                        src={`https://avatar.vercel.sh/${task.assignee?.id}.png`}
-                      />
-                      <AvatarFallback>
-                        {task.assignee?.name?.[0] || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium">
-                      {task.assignee?.name || "Unassigned"}
-                    </span>
+                  <div className="pt-1">
+                    <Select
+                      value={String(task.assignee_id || "unassigned")}
+                      onValueChange={(val) =>
+                        handleUpdate(
+                          "assignee_id",
+                          val === "unassigned" ? null : val
+                        )
+                      }
+                    >
+                      <SelectTrigger className="h-8 border-none bg-transparent hover:bg-muted/50 transition-colors p-1 -ml-1 w-auto min-w-[120px]">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage
+                              src={`https://avatar.vercel.sh/${task.assignee?.id}.png`}
+                            />
+                            <AvatarFallback>
+                              {task.assignee?.name?.[0] || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">
+                            {task.assignee?.name || "Unassigned"}
+                          </span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {projectMembers.map((m) => (
+                          <SelectItem key={m.id} value={String(m.id)}>
+                            {m.user?.name || "Unknown"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Due Date
                   </span>
-                  <div className="flex items-center gap-2 pt-1">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">
-                      {task.due_date
-                        ? new Date(task.due_date).toLocaleDateString()
-                        : "No due date"}
-                    </span>
+                  <div className="pt-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-2 p-1 -ml-1 font-medium hover:bg-muted/50"
+                        >
+                          <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            {task.due_date
+                              ? format(new Date(task.due_date), "PPP")
+                              : "No due date"}
+                          </span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarPicker
+                          mode="single"
+                          selected={
+                            task.due_date ? new Date(task.due_date) : undefined
+                          }
+                          onSelect={(date) =>
+                            handleUpdate("due_date", date?.toISOString())
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
               </div>
@@ -367,7 +517,7 @@ export function TaskSheet({
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => handleUpdate("description")}
+                        onClick={() => handleUpdate("description", editedDesc)}
                       >
                         Save
                       </Button>
@@ -393,16 +543,6 @@ export function TaskSheet({
                       ? "Discussion"
                       : "Time Tracking"}
                   </span>
-                  {activeTab === "comments" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-[10px] gap-1"
-                    >
-                      <Plus className="h-3 w-3" />
-                      Add Comment
-                    </Button>
-                  )}
                 </div>
 
                 {activeTab === "activity" && (

@@ -116,7 +116,8 @@ export function TaskDialog({
   const filteredMembers = React.useMemo(() => {
     if (!selectedTeamId) return projectMembers;
     return projectMembers.filter(
-      (m) => String(m.membership?.team_id) === selectedTeamId
+      (m) =>
+        String(m.team_id || m.membership?.team_id) === String(selectedTeamId)
     );
   }, [projectMembers, selectedTeamId]);
 
@@ -285,8 +286,8 @@ export function TaskDialog({
                     <SelectContent>
                       {filteredMembers.map((m) => (
                         <SelectItem
-                          key={m.user_id + "_" + m.id} // Ensure uniqueness
-                          value={String(m.user_id)}
+                          key={m.id + "_" + (m.role || "member")}
+                          value={String(m.id)}
                         >
                           {m.user?.name || "Unknown"}{" "}
                           {m.role ? `(${m.role})` : ""}

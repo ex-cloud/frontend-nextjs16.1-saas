@@ -3,6 +3,20 @@ import Google from "next-auth/providers/google";
 import GitHub from "next-auth/providers/github";
 import Credentials from "next-auth/providers/credentials";
 
+interface BackendUser {
+  id: number;
+  name: string;
+  email: string;
+  is_active: boolean;
+  roles?: { name: string }[];
+  permissions?: { name: string }[];
+}
+
+declare global {
+  var lastValidationMap: Map<string, number> | undefined;
+  var pendingValidations: Map<string, Promise<BackendUser | null>> | undefined;
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Google({
@@ -98,62 +112,99 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      // Validate user is still active (Throttle: check every 60 seconds)
-      const shouldValidate =
-        !token.lastValidatedAt ||
-        Date.now() - (token.lastValidatedAt as number) > 60000;
+      // Server-side cache to prevent concurrent redundant validations (Thundering Herd)
+      const lastValidationMap =
+        global.lastValidationMap || new Map<string, number>();
+      const pendingValidations =
+        global.pendingValidations ||
+        new Map<string, Promise<BackendUser | null>>();
+      if (!global.lastValidationMap)
+        global.lastValidationMap = lastValidationMap;
+      if (!global.pendingValidations)
+        global.pendingValidations = pendingValidations;
+
+      const userId = token.sub as string;
+      const now = Date.now();
+      const lastCheck =
+        lastValidationMap.get(userId) || (token.lastValidatedAt as number) || 0;
+      const shouldValidate = now - lastCheck > 60000;
 
       if (token.accessToken && !user && shouldValidate) {
-        try {
-          // const start = Date.now();
-          const response = await fetch(
-            `${
-              process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
-            }/api/v1/auth/me`,
-            {
-              headers: {
-                Authorization: `Bearer ${token.accessToken}`,
-                "Content-Type": "application/json",
-              },
+        // If there's already a validation in progress for this user, wait for it
+        if (pendingValidations.has(userId)) {
+          try {
+            const data = await pendingValidations.get(userId);
+            if (data) {
+              token.roles =
+                data.roles?.map((r: { name: string }) => r.name) || [];
+              token.permissions =
+                data.permissions?.map((p: { name: string }) => p.name) || [];
+              token.isActive = data.is_active;
+              token.lastValidatedAt = Date.now();
+              return token;
             }
-          );
-          // console.log(`Auth check took ${Date.now() - start}ms`);
-
-          if (!response.ok) {
-            // Token invalid or user deactivated - force logout
-            console.error("User validation failed:", response.status);
-            return null; // This will trigger logout
+          } catch {
+            // Fallback to normal flow if pending fails
           }
+        }
 
-          const data = await response.json();
+        // Start new validation and cache the promise
+        const validationPromise = (async () => {
+          try {
+            const response = await fetch(
+              `${
+                process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+              }/api/v1/auth/me`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token.accessToken}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            if (!response.ok) return null;
+            const resData = (await response.json()) as { data: BackendUser };
+            return resData.data;
+          } catch (error) {
+            console.error("Validation fetch error:", error);
+            return null;
+          }
+        })();
+
+        pendingValidations.set(userId, validationPromise);
+
+        try {
+          const data = await validationPromise;
+          pendingValidations.delete(userId);
+
+          if (!data) return null; // Force logout
 
           // Check if user is still active
-          if (!data.data.is_active) {
+          if (!data.is_active) {
             console.error("User account deactivated");
-            return null; // Force logout
+            return null;
           }
 
           // Update token with fresh data
-          token.roles =
-            data.data.roles?.map((r: { name: string }) => r.name) || [];
+          token.roles = data.roles?.map((r: { name: string }) => r.name) || [];
           token.permissions =
-            data.data.permissions?.map((p: { name: string }) => p.name) || [];
-          token.isActive = data.data.is_active;
+            data.permissions?.map((p: { name: string }) => p.name) || [];
+          token.isActive = data.is_active;
           token.lastValidatedAt = Date.now();
+          lastValidationMap.set(userId, Date.now());
         } catch (error) {
+          pendingValidations.delete(userId);
           console.error("Token validation error:", error);
-          // On error, allow the request to proceed but log it
-          // This prevents logout on network issues
         }
       }
 
       return token;
     },
     async session({ session, token }) {
-      // If token is null (user deactivated), return null to trigger logout
+      // If token is null (user deactivated), return session as is (middlewares will handle redirect)
       if (!token) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return null as any;
+        return session;
       }
 
       session.user.id = token.sub as string;

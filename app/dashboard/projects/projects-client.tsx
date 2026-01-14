@@ -16,7 +16,6 @@ import {
   RotateCcw,
   Trash,
 } from "lucide-react";
-import { projectService } from "@/lib/api/services/project.service";
 import type { Project, ProjectFilters, ProjectStatus } from "@/types/project";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { ProjectDialog } from "@/components/projects/modals/ProjectDialog";
@@ -40,14 +39,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { toast } from "sonner";
+// import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 
+import { useProjects } from "@/hooks/use-projects";
+
 export function ProjectsClient() {
   const router = useRouter();
-  const [projects, setProjects] = React.useState<Project[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [status, setStatus] = React.useState<string>("all");
   const [view, setView] = React.useState<"grid" | "table">("grid");
@@ -61,33 +60,23 @@ export function ProjectsClient() {
   );
   const [forceDeleteProject, setForceDeleteProject] =
     React.useState<Project | null>(null);
+
   const debouncedSearch = useDebounce(search, 500);
 
-  const fetchProjects = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const filters: ProjectFilters = {
-        page: 1,
-        per_page: 50,
-      };
-
-      if (debouncedSearch) filters.search = debouncedSearch;
-      if (status !== "all") filters.status = status as ProjectStatus;
-      if (isTrash) filters.only_trashed = true;
-
-      const response = await projectService.getProjects(filters);
-      setProjects(response.data);
-    } catch (error) {
-      console.error("Failed to fetch projects:", error);
-      toast.error("Failed to load projects");
-    } finally {
-      setLoading(false);
-    }
+  const filters: ProjectFilters = React.useMemo(() => {
+    const f: ProjectFilters = { page: 1, per_page: 50 };
+    if (debouncedSearch) f.search = debouncedSearch;
+    if (status !== "all") f.status = status as ProjectStatus;
+    if (isTrash) f.only_trashed = true;
+    return f;
   }, [debouncedSearch, status, isTrash]);
 
-  React.useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects, isTrash]);
+  const {
+    data: projectsRes,
+    isLoading: loading,
+    refetch: fetchProjects,
+  } = useProjects(filters);
+  const projects = projectsRes?.data || [];
 
   return (
     <div className="flex flex-col gap-6 p-6 text-foreground">
@@ -107,7 +96,7 @@ export function ProjectsClient() {
           <Button
             variant="outline"
             size="icon"
-            onClick={fetchProjects}
+            onClick={() => fetchProjects()}
             disabled={loading}
           >
             <RefreshCcw className={cn("h-4 w-4", loading && "animate-spin")} />
