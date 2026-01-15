@@ -57,11 +57,14 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 
+import { CustomFieldDefinition } from "@/types/project";
+
 interface TaskSheetProps {
   task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRefresh?: () => void;
+  customFieldDefinitions?: CustomFieldDefinition[];
 }
 
 export function TaskSheet({
@@ -69,6 +72,7 @@ export function TaskSheet({
   open,
   onOpenChange,
   onRefresh,
+  customFieldDefinitions,
 }: TaskSheetProps) {
   const [activeTab, setActiveTab] = React.useState<
     "activity" | "comments" | "time"
@@ -226,6 +230,27 @@ export function TaskSheet({
       if (onRefresh) onRefresh();
     } catch {
       toast.error("Update failed");
+    }
+  };
+
+  const handleUpdateCustomField = async (
+    fieldId: string | number,
+    value: unknown
+  ) => {
+    if (!task) return;
+    try {
+      const currentValues = task.custom_values || {};
+      const newValues = { ...currentValues, [String(fieldId)]: value };
+
+      await taskService.updateTask(task.id, {
+        custom_values: newValues,
+      });
+
+      toast.success("Property updated");
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error("Failed to update custom field:", error);
+      toast.error("Failed to update property");
     }
   };
 
@@ -492,6 +517,70 @@ export function TaskSheet({
                   </div>
                 </div>
               </div>
+
+              {/* Dynamic Properties Section */}
+              {customFieldDefinitions && customFieldDefinitions.length > 0 && (
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-6 border-b border-sidebar-border/30">
+                  {customFieldDefinitions.map((def) => {
+                    const value = task.custom_values?.[String(def.id)];
+                    return (
+                      <div key={def.id} className="space-y-1">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                          {def.name}
+                        </span>
+                        <div className="pt-1">
+                          {def.type === "date" ? (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 gap-2 p-1 -ml-1 font-medium hover:bg-muted/50 w-full justify-start overflow-hidden"
+                                >
+                                  <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <span className="text-sm truncate">
+                                    {value
+                                      ? format(new Date(String(value)), "PPP")
+                                      : "Empty"}
+                                  </span>
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="w-auto p-0"
+                                align="start"
+                              >
+                                <CalendarPicker
+                                  mode="single"
+                                  selected={
+                                    value ? new Date(String(value)) : undefined
+                                  }
+                                  onSelect={(date) =>
+                                    handleUpdateCustomField(
+                                      def.id,
+                                      date?.toISOString()
+                                    )
+                                  }
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          ) : (
+                            <Input
+                              value={String(value ?? "")}
+                              onChange={() => {}} // Controlled local state could be added for better UX
+                              onBlur={(e) =>
+                                handleUpdateCustomField(def.id, e.target.value)
+                              }
+                              placeholder="Empty"
+                              className="h-8 border-none bg-transparent hover:bg-muted/30 transition-colors p-1 -ml-1 text-sm focus-visible:ring-0 focus-visible:bg-muted/50"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Description Section */}
               <div className="space-y-3">

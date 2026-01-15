@@ -39,6 +39,8 @@ export interface Project {
     can_manage_members: boolean;
   };
   boards?: Board[];
+  custom_field_definitions?: CustomFieldDefinition[];
+  project_views?: ProjectView[];
 
   // Stats
   tasks_count?: number;
@@ -105,6 +107,7 @@ export interface Task {
   estimated_hours?: number;
   story_points?: number;
   tags?: string[];
+  custom_values?: Record<string, unknown>;
 
   // Relationships
   assignee?: User;
@@ -243,4 +246,39 @@ export interface AddProjectMemberInput {
   user_id?: string | number | null;
   team_id?: string | number | null;
   role: ProjectMemberRole;
+}
+
+export type CustomFieldType =
+  | "text"
+  | "number"
+  | "date"
+  | "select"
+  | "multi_select"
+  | "files"
+  | "formula";
+
+export interface CustomFieldDefinition {
+  id: string | number;
+  project_id: string | number;
+  name: string;
+  type: CustomFieldType;
+  options?: unknown;
+  position: number;
+  is_required: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type ProjectViewType = "table" | "board" | "calendar" | "gallery";
+
+export interface ProjectView {
+  id: string | number;
+  project_id: string | number;
+  name: string;
+  type: ProjectViewType;
+  config?: Record<string, unknown>;
+  position: number;
+  is_default: boolean;
+  created_at?: string;
+  updated_at?: string;
 }

@@ -44,6 +44,7 @@ import {
   Plus,
   Loader2,
   Trash,
+  Tags,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -59,6 +60,14 @@ import {
 } from "@/components/ui/popover";
 import { DeleteProjectDialog } from "@/components/projects/modals/DeleteProjectDialog";
 import { AddMemberDialog } from "@/components/projects/modals/AddMemberDialog";
+import { ProjectViewTabs } from "@/components/projects/dynamic/ProjectViewTabs";
+import { DynamicTableView } from "@/components/projects/dynamic/DynamicTableView";
+import { ProjectCalendarView } from "@/components/projects/dynamic/ProjectCalendarView";
+import { DynamicBoardView } from "@/components/projects/dynamic/DynamicBoardView";
+import { ProjectGalleryView } from "@/components/projects/dynamic/ProjectGalleryView";
+import { TaskSheet } from "@/components/projects/kanban/TaskSheet";
+import { CustomFieldManager } from "@/components/projects/dynamic/CustomFieldManager";
+import { Task } from "@/types/project";
 
 export default function ProjectSettingsPage() {
   const { id } = useParams();
@@ -67,8 +76,16 @@ export default function ProjectSettingsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
   const [showAddMemberDialog, setShowAddMemberDialog] = React.useState(false);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>();
+  const [activeViewId, setActiveViewId] = React.useState<string | number>(
+    "default"
+  );
+  const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
 
-  const { data: project, isLoading: loadingProject } = useQuery({
+  const {
+    data: project,
+    isLoading: loadingProject,
+    refetch: refetchProject,
+  } = useQuery({
     queryKey: ["project", id],
     queryFn: () => projectService.getProject(String(id)),
     staleTime: 60000,
@@ -220,8 +237,11 @@ export default function ProjectSettingsPage() {
           <TabsTrigger value="team" className="gap-2">
             <Users className="h-4 w-4" /> Team & Assignments
           </TabsTrigger>
+          <TabsTrigger value="properties" className="gap-2">
+            <Tags className="h-4 w-4" /> Properties
+          </TabsTrigger>
           <TabsTrigger value="tasks" className="gap-2">
-            <FileText className="h-4 w-4" /> Tasks
+            <FileText className="h-4 w-4" /> Project Tasks
           </TabsTrigger>
           <TabsTrigger value="attachments" className="gap-2">
             <Paperclip className="h-4 w-4" /> Attachments
@@ -595,6 +615,26 @@ export default function ProjectSettingsPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="properties">
+          <Card className="border-sidebar-border/40 shadow-sm">
+            <CardHeader>
+              <CardTitle>Custom Properties</CardTitle>
+              <CardDescription>
+                Define the data structure for tasks in this project
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {project && (
+                <CustomFieldManager
+                  projectId={project.id}
+                  initialFields={project.custom_field_definitions || []}
+                  onRefresh={() => refetchProject()}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="tasks">
           <Card className="border-sidebar-border/40 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -645,63 +685,96 @@ export default function ProjectSettingsPage() {
                   );
                 }
 
+                const views = project.project_views || [];
+                const hasViews = views.length > 0;
+
+                // Add a default view if none exist or to always have "All Tasks"
+                const displayViews = hasViews
+                  ? views
+                  : [
+                      {
+                        id: "default",
+                        name: "All Tasks",
+                        type: "table" as const,
+                        project_id: project.id,
+                        position: 0,
+                        is_default: true,
+                      },
+                    ];
+
+                const activeView = displayViews.find(
+                  (v) => v.id === activeViewId
+                );
+
+                const handleSaveViewConfig = async (
+                  viewId: string | number
+                ) => {
+                  if (viewId === "default") return;
+                  try {
+                    const view = project.project_views?.find(
+                      (v) => v.id === viewId
+                    );
+                    if (!view) return;
+
+                    await projectService.updateProjectView(project.id, viewId, {
+                      config: view.config, // Later: capture actual current filters/sorts
+                    });
+                    toast.success("View configuration saved");
+                  } catch {
+                    toast.error("Failed to save view configuration");
+                  }
+                };
+
                 return (
-                  <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      {allTasks.length} task{allTasks.length !== 1 ? "s" : ""}{" "}
-                      total
-                    </p>
-                    <div className="divide-y border rounded-lg overflow-hidden">
-                      {allTasks.slice(0, 20).map((task) => (
-                        <div
-                          key={task.id}
-                          className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] shrink-0"
-                            >
-                              {task.task_number || `#${task.id}`}
-                            </Badge>
-                            <span className="font-medium text-sm truncate">
-                              {task.title}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] capitalize ${
-                                task.priority === "urgent"
-                                  ? "border-destructive text-destructive"
-                                  : task.priority === "high"
-                                  ? "border-orange-500 text-orange-500"
-                                  : ""
-                              }`}
-                            >
-                              {task.priority || "medium"}
-                            </Badge>
-                            <Badge variant="secondary" className="text-[10px]">
-                              {task.listName}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {allTasks.length > 20 && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        Showing first 20 tasks.{" "}
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="text-xs p-0 h-auto"
-                          onClick={() =>
-                            router.push(`/dashboard/projects/${id}/kanban`)
-                          }
-                        >
-                          View all on Kanban
-                        </Button>
-                      </p>
+                  <div className="space-y-6">
+                    <ProjectViewTabs
+                      views={displayViews}
+                      activeViewId={activeViewId}
+                      onViewChange={setActiveViewId}
+                      onSave={handleSaveViewConfig}
+                    />
+
+                    {activeView?.type === "calendar" ? (
+                      <ProjectCalendarView
+                        tasks={allTasks}
+                        customFields={project.custom_field_definitions || []}
+                        onTaskClick={setSelectedTask}
+                        className="h-[600px]"
+                      />
+                    ) : activeView?.type === "board" ? (
+                      <DynamicBoardView
+                        tasks={allTasks}
+                        customFields={project.custom_field_definitions || []}
+                        onTaskClick={setSelectedTask}
+                        groupFieldId={
+                          activeView.config?.group_by as
+                            | string
+                            | number
+                            | undefined
+                        }
+                      />
+                    ) : activeView?.type === "gallery" ? (
+                      <ProjectGalleryView
+                        tasks={allTasks}
+                        onTaskClick={setSelectedTask}
+                      />
+                    ) : (
+                      <DynamicTableView
+                        tasks={allTasks}
+                        customFields={project.custom_field_definitions || []}
+                        onTaskClick={setSelectedTask}
+                      />
+                    )}
+
+                    {selectedTask && (
+                      <TaskSheet
+                        task={selectedTask}
+                        open={!!selectedTask}
+                        onOpenChange={(open) => !open && setSelectedTask(null)}
+                        onRefresh={() => {
+                          refetchProject();
+                        }}
+                      />
                     )}
                   </div>
                 );
