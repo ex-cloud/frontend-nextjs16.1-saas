@@ -55,10 +55,10 @@ const priorityColors = {
 };
 
 const priorityHoverColors = {
-  low: "hover:border-slate-400/50",
-  medium: "hover:border-blue-400/50",
-  high: "hover:border-amber-400/50",
-  critical: "hover:border-rose-400/50",
+  low: "hover:border-slate-400",
+  medium: "hover:border-blue-400",
+  high: "hover:border-amber-400",
+  critical: "hover:border-rose-400",
 };
 
 export function ProjectCard({ project, isTrash, onRefresh }: ProjectCardProps) {
