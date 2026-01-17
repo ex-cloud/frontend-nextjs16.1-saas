@@ -1,11 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, FileIcon, ImageIcon } from "lucide-react";
+import {
+  Calendar,
+  File as FileIcon,
+  Image as ImageIcon,
+  CheckSquare,
+  Square,
+  Link as LinkIcon,
+  Mail,
+  Phone,
+  Clock,
+  Star,
+} from "lucide-react";
+const CalendarIcon = Calendar;
 import { cn } from "@/lib/utils";
-import { CustomFieldDefinition, CustomFieldType } from "@/types/project";
+import {
+  CustomFieldDefinition,
+  CustomFieldType,
+  CustomFieldFile,
+} from "@/types/project";
 
 interface FieldRendererProps {
   type: CustomFieldType;
@@ -22,6 +38,9 @@ export function FieldRenderer({
   isCompact = false,
 }: FieldRendererProps) {
   if (value === undefined || value === null || value === "") {
+    if (type === "checkbox") {
+      return <Square className="h-4 w-4 text-muted-foreground/30" />;
+    }
     return (
       <span
         className={cn("text-muted-foreground/40 italic text-xs", className)}
@@ -40,24 +59,69 @@ export function FieldRenderer({
         return <span>{Number(value).toLocaleString()}</span>;
 
       case "date":
+      case "created_at":
+      case "updated_at":
         try {
-          const dateValue =
-            typeof value === "string" ||
-            typeof value === "number" ||
-            value instanceof Date
-              ? value
-              : String(value);
+          const dateStr = String(value);
+          const hasTime = dateStr.includes(":") || dateStr.includes("T");
+          const dateObj = new Date(dateStr);
+
+          if (!isValid(dateObj)) return <span>Invalid Date</span>;
+
           return (
             <div className="flex items-center gap-1.5 text-xs">
-              <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-              <span>
-                {format(new Date(dateValue as string | number | Date), "PPP")}
-              </span>
+              {type === "created_at" || type === "updated_at" ? (
+                <Clock className="h-3 w-3 text-muted-foreground" />
+              ) : (
+                <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+              )}
+              <span>{format(dateObj, hasTime ? "PPP HH:mm" : "PPP")}</span>
             </div>
           );
         } catch {
           return <span>Invalid Date</span>;
         }
+
+      case "checkbox":
+        return value === true || value === "true" || value === 1 ? (
+          <CheckSquare className="h-4 w-4 text-primary" />
+        ) : (
+          <Square className="h-4 w-4 text-muted-foreground/30" />
+        );
+
+      case "url":
+        return (
+          <a
+            href={String(value)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-blue-500 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <LinkIcon className="h-3 w-3" />
+            <span className="truncate max-w-[150px]">{String(value)}</span>
+          </a>
+        );
+
+      case "email":
+        return (
+          <a
+            href={`mailto:${String(value)}`}
+            className="flex items-center gap-1 text-blue-500 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Mail className="h-3 w-3" />
+            <span className="truncate">{String(value)}</span>
+          </a>
+        );
+
+      case "phone":
+        return (
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Phone className="h-3 w-3" />
+            <span>{String(value)}</span>
+          </div>
+        );
 
       case "select":
         return (
@@ -89,8 +153,9 @@ export function FieldRenderer({
         const files = Array.isArray(value) ? value : [value];
         return (
           <div className="flex flex-wrap gap-1.5">
-            {files.slice(0, 3).map((file, i) => {
+            {files.slice(0, 3).map((file: CustomFieldFile, i: number) => {
               const fileUrl = typeof file === "string" ? file : file.url;
+              if (!fileUrl) return null;
               const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl);
 
               return (
@@ -119,6 +184,40 @@ export function FieldRenderer({
                 +{files.length - 3}
               </span>
             )}
+          </div>
+        );
+
+      case "rating":
+        const ratingValue = Number(value || 0);
+        return (
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <Star
+                key={s}
+                className={cn(
+                  "h-3 w-3",
+                  s <= ratingValue
+                    ? "fill-yellow-400 text-yellow-400"
+                    : "text-muted-foreground/30"
+                )}
+              />
+            ))}
+          </div>
+        );
+
+      case "progress":
+        const progressValue = Math.min(100, Math.max(0, Number(value || 0)));
+        return (
+          <div className="flex items-center gap-2 w-full min-w-[60px]">
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all overflow-hidden"
+                style={{ width: `${progressValue}%` }}
+              />
+            </div>
+            <span className="text-[10px] text-muted-foreground w-6">
+              {progressValue}%
+            </span>
           </div>
         );
 

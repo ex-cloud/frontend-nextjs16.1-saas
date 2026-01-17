@@ -109,6 +109,10 @@ export interface Task {
   tags?: string[];
   custom_values?: Record<string, unknown>;
 
+  // UI Helper fields (optional)
+  listName?: string;
+  boardName?: string;
+
   // Relationships
   assignee?: User;
   reporter?: User;
@@ -255,13 +259,22 @@ export type CustomFieldType =
   | "select"
   | "multi_select"
   | "files"
-  | "formula";
+  | "formula"
+  | "checkbox"
+  | "url"
+  | "email"
+  | "phone"
+  | "created_at"
+  | "updated_at"
+  | "rating"
+  | "progress";
 
 export interface CustomFieldFile {
   url: string;
   name: string;
   size: number;
-  mime_type?: string;
+  type?: string; // e.g. "image/png"
+  mime_type?: string; // backend consistency
   path?: string;
 }
 
