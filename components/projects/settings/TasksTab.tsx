@@ -137,6 +137,7 @@ export function TasksTab({
     value: unknown
   ) => {
     try {
+      // Find the latest task from the memoized array
       const task = allTasks.find((t) => String(t.id) === String(taskId));
       if (!task) return;
 
@@ -181,12 +182,19 @@ export function TasksTab({
     file: File
   ) => {
     try {
-      const task = allTasks.find((t) => String(t.id) === String(taskId));
-      if (!task) return;
-
+      // 1. Upload the file first
       const uploadedFile = await taskService.uploadFile(file);
+
+      // 2. Refresh task data locally to avoid race conditions with multiple uploads
+      // Find the task in the latest available state
+      const task = allTasks.find((t) => String(t.id) === String(taskId));
+      if (!task) throw new Error("Task not found");
+
+      const existingValues = task.custom_values || {};
       const currentFiles =
-        (task.custom_values?.[String(defId)] as CustomFieldFile[]) || [];
+        (existingValues[String(defId)] as CustomFieldFile[]) || [];
+
+      // Ensure we don't duplicate or lose files
       const nextFiles = [
         ...currentFiles,
         {
@@ -197,18 +205,20 @@ export function TasksTab({
         },
       ];
 
-      const currentValues = task.custom_values || {};
       const newValues = {
-        ...currentValues,
+        ...existingValues,
         [String(defId)]: nextFiles,
       };
 
+      // 3. Update the task
       await taskService.updateTask(taskId, {
         custom_values: newValues,
       });
+
+      toast.success("File uploaded successfully");
       onRefresh();
     } catch (error) {
-      console.error("Upload failed", error);
+      console.error("Upload/Update failed:", error);
       toast.error("Upload failed");
     }
   };

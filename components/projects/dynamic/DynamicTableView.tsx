@@ -146,6 +146,34 @@ export function DynamicTableView({
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
+  // Optimistic updates state
+  const [localTasks, setLocalTasks] = React.useState<Task[]>(tasks);
+
+  // Keep local tasks in sync with prop updates
+  React.useEffect(() => {
+    setLocalTasks(tasks);
+  }, [tasks]);
+
+  const updateLocalTaskField = React.useCallback(
+    (taskId: string | number, fieldId: string | number, value: unknown) => {
+      setLocalTasks((prev) =>
+        prev.map((t) => {
+          if (String(t.id) === String(taskId)) {
+            return {
+              ...t,
+              custom_values: {
+                ...(t.custom_values || {}),
+                [String(fieldId)]: value,
+              },
+            };
+          }
+          return t;
+        })
+      );
+    },
+    []
+  );
+
   // Define columns
   const columns = React.useMemo<ColumnDef<Task>[]>(() => {
     // 1. Static Columns
@@ -317,6 +345,7 @@ export function DynamicTableView({
                 <AdvancedDatePicker
                   selected={value as string}
                   onSelect={(date: string | null) => {
+                    updateLocalTaskField(row.original.id, field.id, date);
                     if (onUpdateCustomField) {
                       onUpdateCustomField(row.original.id, field.id, date);
                     }
@@ -333,6 +362,7 @@ export function DynamicTableView({
               <Checkbox
                 checked={value === true || value === "true" || value === 1}
                 onCheckedChange={(checked) => {
+                  updateLocalTaskField(row.original.id, field.id, !!checked);
                   if (onUpdateCustomField) {
                     onUpdateCustomField(row.original.id, field.id, !!checked);
                   }
@@ -348,6 +378,7 @@ export function DynamicTableView({
             <Select
               value={String(value || "")}
               onValueChange={(val) => {
+                updateLocalTaskField(row.original.id, field.id, val);
                 if (onUpdateCustomField) {
                   onUpdateCustomField(row.original.id, field.id, val);
                 }
@@ -391,10 +422,11 @@ export function DynamicTableView({
                         key={opt}
                         className="flex items-center gap-2 px-2 py-1 hover:bg-muted/50 rounded cursor-pointer"
                         onClick={() => {
+                          const next = isChecked
+                            ? current.filter((c) => c !== opt)
+                            : [...current, opt];
+                          updateLocalTaskField(row.original.id, field.id, next);
                           if (onUpdateCustomField) {
-                            const next = isChecked
-                              ? current.filter((c) => c !== opt)
-                              : [...current, opt];
                             onUpdateCustomField(
                               row.original.id,
                               field.id,
@@ -425,7 +457,10 @@ export function DynamicTableView({
                     definition={field}
                     isCompact
                   />
-                  {!value || (Array.isArray(value) && value.length === 0) ? (
+                  {!value ||
+                  (Array.isArray(value) && value.length === 0) ||
+                  (typeof value === "object" &&
+                    Object.keys(value as object).length === 0) ? (
                     <span className="text-muted-foreground/30 italic text-[10px] ml-1">
                       Empty
                     </span>
@@ -452,10 +487,15 @@ export function DynamicTableView({
                             size="icon"
                             className="h-5 w-5 opacity-0 group-hover/file:opacity-100 hover:text-destructive"
                             onClick={() => {
+                              const next = (value as CustomFieldFile[]).filter(
+                                (_, idx) => idx !== i
+                              );
+                              updateLocalTaskField(
+                                row.original.id,
+                                field.id,
+                                next
+                              );
                               if (onUpdateCustomField) {
-                                const next = (
-                                  value as CustomFieldFile[]
-                                ).filter((_, idx) => idx !== i);
                                 onUpdateCustomField(
                                   row.original.id,
                                   field.id,
@@ -490,6 +530,8 @@ export function DynamicTableView({
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file && onFileUpload) {
+                        // Optimistic update for files is tricky because we don't have the URL yet.
+                        // We show a loading toast for now.
                         const tid = toast.loading("Uploading file...");
                         try {
                           await onFileUpload(row.original.id, field.id, file);
@@ -525,6 +567,7 @@ export function DynamicTableView({
                 onBlur={(e) => {
                   const newVal = e.target.value;
                   if (onUpdateCustomField && newVal !== String(value ?? "")) {
+                    updateLocalTaskField(row.original.id, field.id, newVal);
                     onUpdateCustomField(row.original.id, field.id, newVal);
                   }
                 }}
@@ -544,11 +587,12 @@ export function DynamicTableView({
     onUpdateTask,
     onFileUpload,
     projectMembers,
+    updateLocalTaskField,
   ]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
-    data: tasks,
+    data: localTasks,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),

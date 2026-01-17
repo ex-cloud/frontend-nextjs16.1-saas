@@ -213,8 +213,14 @@ export const taskService = {
     formData.append("file", file);
     const response = await api.post<{
       success: boolean;
-      data: { url: string; name: string; size: number };
-    }>("/upload", formData, {
+      data: {
+        url: string;
+        name: string;
+        size: number;
+        path: string;
+        mime_type: string;
+      };
+    }>("/hrm/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

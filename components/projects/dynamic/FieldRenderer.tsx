@@ -14,6 +14,7 @@ import {
   Phone,
   Clock,
   Star,
+  ArrowRight,
 } from "lucide-react";
 const CalendarIcon = Calendar;
 import { cn } from "@/lib/utils";
@@ -37,7 +38,12 @@ export function FieldRenderer({
   className,
   isCompact = false,
 }: FieldRendererProps) {
-  if (value === undefined || value === null || value === "") {
+  if (
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    (typeof value === "object" && Object.keys(value).length === 0)
+  ) {
     if (type === "checkbox") {
       return <Square className="h-4 w-4 text-muted-foreground/30" />;
     }
@@ -63,6 +69,31 @@ export function FieldRenderer({
       case "updated_at":
         try {
           const dateStr = String(value);
+          if (dateStr.includes(" -> ")) {
+            const [startSub, endSub] = dateStr.split(" -> ");
+            const hasTimeStart =
+              startSub.includes(":") || startSub.includes("T");
+            const hasTimeEnd = endSub.includes(":") || endSub.includes("T");
+            const startObj = new Date(startSub);
+            const endObj = new Date(endSub);
+
+            if (!isValid(startObj) || !isValid(endObj))
+              return <span>Invalid Range</span>;
+
+            return (
+              <div className="flex items-center gap-1.5 text-[10px] font-medium text-foreground/80">
+                <CalendarIcon className="h-3 w-3 text-muted-foreground/50" />
+                <span>
+                  {format(startObj, hasTimeStart ? "MMM d, HH:mm" : "MMM d")}
+                </span>
+                <ArrowRight className="h-2.5 w-2.5 text-muted-foreground/30" />
+                <span>
+                  {format(endObj, hasTimeEnd ? "MMM d, HH:mm" : "MMM d")}
+                </span>
+              </div>
+            );
+          }
+
           const hasTime = dateStr.includes(":") || dateStr.includes("T");
           const dateObj = new Date(dateStr);
 
