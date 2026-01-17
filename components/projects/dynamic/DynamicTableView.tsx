@@ -8,6 +8,8 @@ import {
   getFilteredRowModel,
   useReactTable,
   ColumnFiltersState,
+  SortingState,
+  getSortedRowModel,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -23,11 +25,27 @@ import { Task, CustomFieldDefinition } from "@/types/project";
 import { FieldRenderer } from "./FieldRenderer";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Search, Settings2 } from "lucide-react";
+import {
+  Search,
+  Settings2,
+  Plus,
+  Maximize2,
+  ListFilter,
+  Calendar as CalendarIcon,
+  Type,
+  Hash,
+  Tags,
+  FileText,
+  Calculator,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -39,19 +57,37 @@ interface DynamicTableViewProps {
   tasks: Task[];
   customFields: CustomFieldDefinition[];
   onTaskClick?: (task: Task) => void;
+  onAddProperty?: (type: CustomFieldDefinition["type"]) => void;
   className?: string;
 }
+
+const FIELD_TYPES: {
+  type: CustomFieldDefinition["type"];
+  label: string;
+  icon: React.ElementType;
+}[] = [
+  { type: "text", label: "Text", icon: Type },
+  { type: "number", label: "Number", icon: Hash },
+  { type: "date", label: "Date", icon: CalendarIcon },
+  { type: "select", label: "Select", icon: ListFilter },
+  { type: "multi_select", label: "Multi-select", icon: Tags },
+  { type: "files", label: "Files", icon: FileText },
+  { type: "formula", label: "Formula", icon: Calculator },
+];
 
 export function DynamicTableView({
   tasks,
   customFields,
   onTaskClick,
+  onAddProperty,
   className,
 }: DynamicTableViewProps) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
   const [columnVisibility, setColumnVisibility] = React.useState({});
+  const [globalFilter, setGlobalFilter] = React.useState("");
+  const [sorting, setSorting] = React.useState<SortingState>([]);
 
   // Define columns
   const columns = React.useMemo<ColumnDef<Task>[]>(() => {
@@ -70,7 +106,23 @@ export function DynamicTableView({
         accessorKey: "title",
         header: "Title",
         cell: ({ row }) => (
-          <span className="font-medium text-sm">{row.getValue("title")}</span>
+          <div className="flex items-center justify-between group/cell">
+            <span className="font-medium text-sm truncate">
+              {row.getValue("title")}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-6 px-1.5 opacity-0 group-hover/cell:opacity-100 transition-opacity gap-1 text-[10px]"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTaskClick?.(row.original);
+              }}
+            >
+              <Maximize2 className="h-3 w-3" />
+              OPEN
+            </Button>
+          </div>
         ),
       },
       {
@@ -114,9 +166,9 @@ export function DynamicTableView({
         if (field.type === "formula") {
           const formula =
             (field.options as { formula?: string })?.formula || "";
-          return evaluateFormula(formula, row);
+          return evaluateFormula(formula, row); // This might return number/string
         }
-        return row.custom_values?.[String(field.id)];
+        return row.custom_values?.[String(field.id)]; // This returns string/number/null
       },
       cell: ({ row }) => {
         let value = row.original.custom_values?.[String(field.id)];
@@ -139,7 +191,7 @@ export function DynamicTableView({
     }));
 
     return [...staticCols, ...dynamicCols];
-  }, [customFields]);
+  }, [customFields, onTaskClick]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -147,48 +199,93 @@ export function DynamicTableView({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
+    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
+    globalFilterFn: "includesString",
     state: {
       columnFilters,
       columnVisibility,
+      globalFilter,
+      sorting,
     },
   });
 
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="flex items-center justify-between">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="ml-auto gap-2">
-              <Settings2 className="h-4 w-4" />
-              Columns
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[200px]">
-            <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
-                    }
-                  >
-                    {typeof column.columnDef.header === "string"
-                      ? column.columnDef.header
-                      : column.id.replace("custom_", "").replace("_", " ")}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center flex-1 max-w-sm gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search tasks..."
+              value={globalFilter ?? ""}
+              onChange={(event) => setGlobalFilter(event.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          {/* Placeholder for Sort/Filter dropdown if needed */}
+          <Button variant="outline" size="sm" className="h-9 w-9 p-0 px-0">
+            <ListFilter className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 h-9 px-3">
+                <Plus className="h-4 w-4" />
+                Add Property
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {FIELD_TYPES.map((ft) => (
+                <DropdownMenuItem
+                  key={ft.type}
+                  onClick={() => onAddProperty?.(ft.type)}
+                  className="gap-2"
+                >
+                  <ft.icon className="h-4 w-4 text-muted-foreground" />
+                  {ft.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 h-9 px-3">
+                <Settings2 className="h-4 w-4" />
+                Columns
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[200px]">
+              <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {table
+                .getAllColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) =>
+                        column.toggleVisibility(!!value)
+                      }
+                    >
+                      {typeof column.columnDef.header === "string"
+                        ? column.columnDef.header
+                        : column.id.replace("custom_", "").replace("_", " ")}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="rounded-md border bg-card/50 backdrop-blur-sm">
@@ -202,32 +299,29 @@ export function DynamicTableView({
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className="text-xs font-semibold py-2 h-auto"
+                    className="text-xs font-semibold py-3 h-auto whitespace-nowrap"
                   >
-                    <div className="space-y-2 py-2">
-                      <div className="flex items-center justify-between">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </div>
-                      {header.column.getCanFilter() ? (
-                        <div className="relative">
-                          <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground/50" />
-                          <Input
-                            placeholder={`Filter...`}
-                            value={
-                              (header.column.getFilterValue() as string) ?? ""
-                            }
-                            onChange={(event) =>
-                              header.column.setFilterValue(event.target.value)
-                            }
-                            className="h-7 w-full pl-7 text-[10px] bg-background/50 border-muted-foreground/10 focus-visible:ring-1"
-                          />
-                        </div>
-                      ) : null}
+                    <div
+                      className={cn(
+                        "flex items-center gap-2 select-none",
+                        header.column.getCanSort() &&
+                          "cursor-pointer hover:text-foreground/80"
+                      )}
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                      {{
+                        asc: <ArrowUp className="h-3 w-3" />,
+                        desc: <ArrowDown className="h-3 w-3" />,
+                      }[header.column.getIsSorted() as string] ??
+                        (header.column.getCanSort() ? (
+                          <ArrowUpDown className="h-3 w-3 opacity-50" />
+                        ) : null)}
                     </div>
                   </TableHead>
                 ))}
@@ -259,7 +353,7 @@ export function DynamicTableView({
                   colSpan={columns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  No tasks found matching your filters.
+                  No tasks found matching your search.
                 </TableCell>
               </TableRow>
             )}

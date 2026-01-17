@@ -257,6 +257,19 @@ export type CustomFieldType =
   | "files"
   | "formula";
 
+export interface CustomFieldFile {
+  url: string;
+  name: string;
+  size: number;
+  mime_type?: string;
+  path?: string;
+}
+
+export interface CustomFieldOptions {
+  options?: string[];
+  formula?: string;
+}
+
 export interface CustomFieldDefinition {
   id: string | number;
   project_id: string | number;

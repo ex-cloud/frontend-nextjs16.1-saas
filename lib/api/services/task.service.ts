@@ -205,6 +205,22 @@ export const taskService = {
     }>("/time-tracking/active");
     return response.data;
   },
+
+  uploadFile: async (
+    file: File
+  ): Promise<{ url: string; name: string; size: number }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await api.post<{
+      success: boolean;
+      data: { url: string; name: string; size: number };
+    }>("/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data.data;
+  },
 };
 
 export default taskService;

@@ -12,10 +12,15 @@ import {
   FileText,
   GripVertical,
   Calculator,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CustomFieldDefinition, CustomFieldType } from "@/types/project";
+import {
+  CustomFieldDefinition,
+  CustomFieldType,
+  CustomFieldOptions,
+} from "@/types/project";
 import { projectService } from "@/lib/api/services/project.service";
 import { toast } from "sonner";
 import {
@@ -170,8 +175,8 @@ export function CustomFieldManager({
                           <Input
                             placeholder="e.g. {{price}} * {{quantity}}"
                             defaultValue={
-                              (field.options as { formula?: string })
-                                ?.formula || ""
+                              (field.options as CustomFieldOptions)?.formula ||
+                              ""
                             }
                             onBlur={async (e) => {
                               const formula = e.target.value;
@@ -189,6 +194,79 @@ export function CustomFieldManager({
                             }}
                             className="h-6 text-[10px] bg-muted/50 border-dashed"
                           />
+                        </div>
+                      )}
+                      {(field.type === "select" ||
+                        field.type === "multi_select") && (
+                        <div className="w-full pt-2">
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {(
+                              (field.options as CustomFieldOptions)?.options ||
+                              []
+                            ).map((opt) => (
+                              <div
+                                key={opt}
+                                className="flex items-center gap-1 bg-secondary text-secondary-foreground px-2 py-0.5 rounded textxs text-[10px]"
+                              >
+                                {opt}
+                                <X
+                                  className="h-3 w-3 cursor-pointer hover:text-destructive"
+                                  onClick={async () => {
+                                    const currentOptions =
+                                      (field.options as CustomFieldOptions)
+                                        ?.options || [];
+                                    const newOptions = currentOptions.filter(
+                                      (o) => o !== opt
+                                    );
+                                    await projectService.updateCustomField(
+                                      projectId,
+                                      field.id,
+                                      {
+                                        options: {
+                                          ...(field.options as object),
+                                          options: newOptions,
+                                        },
+                                      }
+                                    );
+                                    onRefresh();
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="Add option..."
+                              className="h-6 text-[10px] w-32"
+                              onKeyDown={async (e) => {
+                                if (e.key === "Enter") {
+                                  const val = e.currentTarget.value.trim();
+                                  if (!val) return;
+                                  const currentOptions =
+                                    (field.options as CustomFieldOptions)
+                                      ?.options || [];
+                                  if (currentOptions.includes(val)) return;
+
+                                  const newOptions = [...currentOptions, val];
+                                  await projectService.updateCustomField(
+                                    projectId,
+                                    field.id,
+                                    {
+                                      options: {
+                                        ...(field.options as object),
+                                        options: newOptions,
+                                      },
+                                    }
+                                  );
+                                  e.currentTarget.value = "";
+                                  onRefresh();
+                                }
+                              }}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              Press Enter to add
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>

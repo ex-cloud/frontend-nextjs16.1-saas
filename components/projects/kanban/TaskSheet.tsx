@@ -14,6 +14,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Clock,
   MessageSquare,
   History,
@@ -23,8 +29,19 @@ import {
   Send,
   Loader2,
   Calendar as CalendarIcon,
+  X,
+  Plus as PlusIcon,
+  FileIcon,
+  Paperclip as PaperclipIcon,
 } from "lucide-react";
-import type { Task, Comment, TimeLog, ProjectMember } from "@/types/project";
+import type {
+  Task,
+  Comment,
+  TimeLog,
+  ProjectMember,
+  CustomFieldFile,
+  CustomFieldOptions,
+} from "@/types/project";
 import { taskService } from "@/lib/api/services/task.service";
 import { projectService } from "@/lib/api/services/project.service";
 import { cn } from "@/lib/utils";
@@ -49,6 +66,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
   Popover,
@@ -56,6 +74,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { evaluateFormula } from "@/lib/utils/formula-evaluator";
 
 import { CustomFieldDefinition } from "@/types/project";
 
@@ -522,7 +541,15 @@ export function TaskSheet({
               {customFieldDefinitions && customFieldDefinitions.length > 0 && (
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-6 border-b border-sidebar-border/30">
                   {customFieldDefinitions.map((def) => {
-                    const value = task.custom_values?.[String(def.id)];
+                    let value = task.custom_values?.[String(def.id)];
+
+                    // Compute formula if needed
+                    if (def.type === "formula") {
+                      const formula =
+                        (def.options as CustomFieldOptions)?.formula || "";
+                      value = evaluateFormula(formula, task);
+                    }
+
                     return (
                       <div key={def.id} className="space-y-1">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -535,7 +562,7 @@ export function TaskSheet({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 gap-2 p-1 -ml-1 font-medium hover:bg-muted/50 w-full justify-start overflow-hidden"
+                                  className="h-8 gap-2 p-1 -ml-1 font-medium hover:bg-muted/50 w-full justify-start overflow-hidden text-left"
                                 >
                                   <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                                   <span className="text-sm truncate">
@@ -557,17 +584,175 @@ export function TaskSheet({
                                   onSelect={(date) =>
                                     handleUpdateCustomField(
                                       def.id,
-                                      date?.toISOString()
+                                      date ? format(date, "yyyy-MM-dd") : null
                                     )
                                   }
                                   initialFocus
                                 />
                               </PopoverContent>
                             </Popover>
+                          ) : def.type === "select" ? (
+                            <Select
+                              value={String(value ?? "empty")}
+                              onValueChange={(val) =>
+                                handleUpdateCustomField(
+                                  def.id,
+                                  val === "empty" ? null : val
+                                )
+                              }
+                            >
+                              <SelectTrigger className="h-8 border-none bg-transparent hover:bg-muted/30 transition-colors p-1 -ml-1 text-sm focus:ring-0 w-full justify-start">
+                                <SelectValue placeholder="Empty" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="empty">Empty</SelectItem>
+                                {(
+                                  (def.options as CustomFieldOptions)
+                                    ?.options || []
+                                ).map((opt) => (
+                                  <SelectItem key={opt} value={opt}>
+                                    {opt}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : def.type === "multi_select" ? (
+                            <div className="flex flex-wrap gap-1">
+                              {Array.isArray(value) &&
+                                value.map((v) => (
+                                  <Badge
+                                    key={v}
+                                    variant="secondary"
+                                    className="text-[10px] gap-1 px-1 h-5"
+                                  >
+                                    {v}
+                                    <X
+                                      className="h-2 w-2 cursor-pointer hover:text-destructive"
+                                      onClick={() => {
+                                        const newVal = (
+                                          value as string[]
+                                        ).filter((i) => i !== v);
+                                        handleUpdateCustomField(def.id, newVal);
+                                      }}
+                                    />
+                                  </Badge>
+                                ))}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 rounded-full"
+                                  >
+                                    <PlusIcon className="h-3 w-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                  {(
+                                    (def.options as CustomFieldOptions)
+                                      ?.options || []
+                                  )
+                                    .filter(
+                                      (opt) =>
+                                        !Array.isArray(value) ||
+                                        !value.includes(opt)
+                                    )
+                                    .map((opt) => (
+                                      <DropdownMenuItem
+                                        key={opt}
+                                        onClick={() => {
+                                          const newVal = Array.isArray(value)
+                                            ? [...value, opt]
+                                            : [opt];
+                                          handleUpdateCustomField(
+                                            def.id,
+                                            newVal
+                                          );
+                                        }}
+                                      >
+                                        {opt}
+                                      </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          ) : def.type === "files" ? (
+                            <div className="space-y-1">
+                              {Array.isArray(value) &&
+                                value.map((file: CustomFieldFile, i) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-center justify-between gap-2 p-1 rounded hover:bg-muted/50 transition-colors group"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <FileIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+                                      <span className="text-[10px] truncate">
+                                        {file.name || "File"}
+                                      </span>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-4 w-4 opacity-0 group-hover:opacity-100"
+                                      onClick={() => {
+                                        const newVal = (
+                                          value as CustomFieldFile[]
+                                        ).filter((_, index) => index !== i);
+                                        handleUpdateCustomField(def.id, newVal);
+                                      }}
+                                    >
+                                      <X className="h-2 w-2" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              <div className="relative">
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  id={`file-upload-${def.id}`}
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    try {
+                                      const uploaded =
+                                        await taskService.uploadFile(file);
+                                      const current = Array.isArray(value)
+                                        ? value
+                                        : [];
+                                      handleUpdateCustomField(def.id, [
+                                        ...current,
+                                        uploaded,
+                                      ]);
+                                      e.target.value = ""; // Reset input
+                                    } catch (err) {
+                                      console.error(err);
+                                      toast.error("Upload failed");
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 gap-1 text-[10px] px-2 text-muted-foreground hover:text-foreground"
+                                  onClick={() =>
+                                    document
+                                      .getElementById(`file-upload-${def.id}`)
+                                      ?.click()
+                                  }
+                                >
+                                  <PaperclipIcon className="h-3 w-3" />
+                                  Add File
+                                </Button>
+                              </div>
+                            </div>
+                          ) : def.type === "formula" ? (
+                            <div className="text-sm font-medium py-1 px-1 -ml-1 text-primary">
+                              {String(value ?? "-")}
+                            </div>
                           ) : (
                             <Input
                               value={String(value ?? "")}
-                              onChange={() => {}} // Controlled local state could be added for better UX
+                              onChange={() => {}}
                               onBlur={(e) =>
                                 handleUpdateCustomField(def.id, e.target.value)
                               }

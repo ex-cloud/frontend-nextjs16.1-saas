@@ -91,6 +91,29 @@ export default function ProjectSettingsPage() {
     staleTime: 60000,
   });
 
+  const handleAddCustomField = async (
+    type:
+      | "text"
+      | "number"
+      | "date"
+      | "select"
+      | "multi_select"
+      | "files"
+      | "formula"
+  ) => {
+    try {
+      await projectService.createCustomField(String(id), {
+        name: `New ${type} field`,
+        type,
+        position: project?.custom_field_definitions?.length || 0,
+      });
+      toast.success("Property added");
+      refetchProject();
+    } catch {
+      toast.error("Failed to add property");
+    }
+  };
+
   const { data: departmentsResponse, isLoading: loadingDepts } = useQuery({
     queryKey: ["departments"],
     queryFn: () => departmentApi.list({ per_page: 50 }),
@@ -763,6 +786,7 @@ export default function ProjectSettingsPage() {
                         tasks={allTasks}
                         customFields={project.custom_field_definitions || []}
                         onTaskClick={setSelectedTask}
+                        onAddProperty={handleAddCustomField}
                       />
                     )}
 
@@ -774,6 +798,9 @@ export default function ProjectSettingsPage() {
                         onRefresh={() => {
                           refetchProject();
                         }}
+                        customFieldDefinitions={
+                          project.custom_field_definitions || []
+                        }
                       />
                     )}
                   </div>
