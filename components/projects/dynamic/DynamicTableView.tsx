@@ -56,8 +56,9 @@ import {
   FileText,
   Calculator,
   ArrowUpDown,
-  ArrowUp,
   ArrowDown,
+  ArrowUp,
+  Eye,
   CheckSquare,
   Link as LinkIcon,
   Mail,
@@ -479,33 +480,60 @@ export function DynamicTableView({
                           key={i}
                           className="flex items-center justify-between text-xs p-1.5 bg-muted/40 rounded border border-border/50 group/file"
                         >
-                          <span className="truncate max-w-[150px] font-medium">
-                            {file.name}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 opacity-0 group-hover/file:opacity-100 hover:text-destructive"
-                            onClick={() => {
-                              const next = (value as CustomFieldFile[]).filter(
-                                (_, idx) => idx !== i
-                              );
-                              updateLocalTaskField(
-                                row.original.id,
-                                field.id,
-                                next
-                              );
-                              if (onUpdateCustomField) {
-                                onUpdateCustomField(
+                          <div
+                            className="flex items-center gap-2 truncate flex-1 cursor-pointer hover:underline"
+                            onClick={() =>
+                              window.open(
+                                typeof file === "string" ? file : file.url,
+                                "_blank"
+                              )
+                            }
+                          >
+                            <span className="truncate max-w-[150px] font-medium">
+                              {file.name}
+                            </span>
+                          </div>
+                          <div className="flex items-center opacity-0 group-hover/file:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 hover:text-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(
+                                  typeof file === "string" ? file : file.url,
+                                  "_blank"
+                                );
+                              }}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const next = (
+                                  value as CustomFieldFile[]
+                                ).filter((_, idx) => idx !== i);
+                                updateLocalTaskField(
                                   row.original.id,
                                   field.id,
                                   next
                                 );
-                              }
-                            }}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
+                                if (onUpdateCustomField) {
+                                  onUpdateCustomField(
+                                    row.original.id,
+                                    field.id,
+                                    next
+                                  );
+                                }
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                   </div>

@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Calendar,
   File as FileIcon,
-  Image as ImageIcon,
   CheckSquare,
   Square,
   Link as LinkIcon,
@@ -15,6 +14,7 @@ import {
   Clock,
   Star,
   ArrowRight,
+  Eye,
 } from "lucide-react";
 const CalendarIcon = Calendar;
 import { cn } from "@/lib/utils";
@@ -32,12 +32,20 @@ interface FieldRendererProps {
   isCompact?: boolean;
 }
 
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+
 export function FieldRenderer({
   type,
   value,
   className,
   isCompact = false,
 }: FieldRendererProps) {
+  const [previewFile, setPreviewFile] = React.useState<{
+    url: string;
+    name: string;
+    type: string;
+  } | null>(null);
+
   if (
     value === undefined ||
     value === null ||
@@ -183,39 +191,124 @@ export function FieldRenderer({
       case "files":
         const files = Array.isArray(value) ? value : [value];
         return (
-          <div className="flex flex-wrap gap-1.5">
-            {files.slice(0, 3).map((file: CustomFieldFile, i: number) => {
-              const fileUrl = typeof file === "string" ? file : file.url;
-              if (!fileUrl) return null;
-              const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl);
+          <>
+            <div className="flex flex-wrap gap-1.5">
+              {files.slice(0, 4).map((file: CustomFieldFile, i: number) => {
+                const fileUrl = typeof file === "string" ? file : file.url;
+                const fileName =
+                  typeof file === "string"
+                    ? (file as string).split("/").pop()
+                    : file.name;
+                if (!fileUrl) return null;
 
-              return (
+                const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl);
+                const isPdf = /\.pdf$/i.test(fileUrl);
+                const isWord = /\.(doc|docx)$/i.test(fileUrl);
+                const isExcel = /\.(xls|xlsx|csv)$/i.test(fileUrl);
+                const isPpt = /\.(ppt|pptx)$/i.test(fileUrl);
+                const isZip = /\.(zip|rar|7z)$/i.test(fileUrl);
+
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "relative group/file flex items-center justify-center rounded overflow-hidden border bg-background/50",
+                      isCompact ? "h-6 w-6" : "h-9 w-9"
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isImage) {
+                        setPreviewFile({
+                          url: fileUrl,
+                          name: fileName || "File",
+                          type: "image",
+                        });
+                      } else {
+                        window.open(fileUrl, "_blank");
+                      }
+                    }}
+                  >
+                    {/* Thumbnail / Icon */}
+                    {isImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={fileUrl}
+                        alt={fileName}
+                        className="h-full w-full object-cover transition-transform group-hover/file:scale-110"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-full h-full bg-muted/20">
+                        {isPdf ? (
+                          <span className="text-[8px] font-bold text-red-500">
+                            PDF
+                          </span>
+                        ) : isWord ? (
+                          <span className="text-[8px] font-bold text-blue-500">
+                            DOC
+                          </span>
+                        ) : isExcel ? (
+                          <span className="text-[8px] font-bold text-green-500">
+                            XLS
+                          </span>
+                        ) : isPpt ? (
+                          <span className="text-[8px] font-bold text-orange-500">
+                            PPT
+                          </span>
+                        ) : isZip ? (
+                          <span className="text-[8px] font-bold text-yellow-500">
+                            ZIP
+                          </span>
+                        ) : (
+                          <FileIcon className="h-4 w-4 text-muted-foreground/50" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Hover Overlay */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/file:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                      <Eye className="h-3.5 w-3.5 text-white" />
+                    </div>
+                  </div>
+                );
+              })}
+              {files.length > 4 && (
                 <div
-                  key={i}
                   className={cn(
-                    "flex items-center gap-1 p-1 rounded border bg-background/50",
-                    isCompact ? "h-6 px-1.5" : "h-8 px-2"
+                    "flex items-center justify-center rounded bg-muted/30 border text-[9px] text-muted-foreground",
+                    isCompact ? "h-6 w-6" : "h-9 w-9"
                   )}
                 >
-                  {isImage ? (
-                    <ImageIcon className="h-3 w-3 text-blue-500" />
-                  ) : (
-                    <FileIcon className="h-3 w-3 text-slate-500" />
-                  )}
-                  {!isCompact && (
-                    <span className="text-[10px] truncate max-w-[80px]">
-                      {fileUrl.split("/").pop()}
-                    </span>
-                  )}
+                  +{files.length - 4}
                 </div>
-              );
-            })}
-            {files.length > 3 && (
-              <span className="text-[10px] text-muted-foreground">
-                +{files.length - 3}
-              </span>
-            )}
-          </div>
+              )}
+            </div>
+
+            <Dialog
+              open={!!previewFile}
+              onOpenChange={(open) => !open && setPreviewFile(null)}
+            >
+              <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-transparent border-none shadow-none text-white sm:max-w-screen-lg">
+                <DialogTitle className="sr-only">
+                  Preview {previewFile?.name}
+                </DialogTitle>
+                <div className="relative flex flex-col items-center justify-center w-full h-full">
+                  {/* Close button handled by Dialog primitive, but we can add a custom one if needed. 
+                       Clicking outside closes it. */}
+                  {previewFile?.type === "image" && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={previewFile.url}
+                      alt={previewFile.name}
+                      className="max-h-[85vh] w-auto object-contain rounded-md shadow-2xl"
+                    />
+                  )}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-white/90">
+                    {previewFile?.name}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </>
         );
 
       case "rating":
