@@ -22,8 +22,14 @@ import { restrictToWindowEdges, snapCenterToCursor } from "@dnd-kit/modifiers";
 import {
   SortableContext,
   sortableKeyboardCoordinates,
+  arrayMove,
 } from "@dnd-kit/sortable";
-import type { TaskList, Task } from "@/types/project";
+import type {
+  TaskList,
+  Task,
+  CustomFieldDefinition,
+  CustomFieldType,
+} from "@/types/project";
 import { KanbanColumn } from "@/components/projects/kanban/KanbanColumn";
 import { KanbanTask } from "@/components/projects/kanban/KanbanTask";
 import { TaskDialog } from "@/components/projects/modals/TaskDialog";
@@ -42,12 +48,16 @@ interface KanbanBoardProps {
     project_id: string | number;
   };
   onRefresh?: () => void;
+  customFieldDefinitions?: CustomFieldDefinition[];
+  onAddProperty?: (type: CustomFieldType) => void;
 }
 
 export function KanbanBoard({
   initialLists,
   board,
   onRefresh,
+  customFieldDefinitions,
+  onAddProperty,
 }: KanbanBoardProps) {
   const [lists, setLists] = React.useState<TaskList[]>(initialLists);
   const [activeTask, setActiveTask] = React.useState<Task | null>(null);
@@ -58,14 +68,35 @@ export function KanbanBoard({
     string | number | null
   >(null);
 
+  // Helper to cleanup dnd-kit IDs
+  const cleanupId = (id: string | number) => {
+    return String(id).replace(/^(task-|col-)/, "");
+  };
+
+  // Helper functions - defined BEFORE useEffect that uses them
   // Helper functions - defined BEFORE useEffect that uses them
   const findContainer = React.useCallback(
     (id: string | number) => {
-      if (lists.find((l) => String(l.id) === String(id))) {
-        return lists.find((l) => String(l.id) === String(id));
+      const strId = String(id);
+      const clean = cleanupId(id);
+
+      // Strict checking based on prefix
+      if (strId.startsWith("col-")) {
+        return lists.find((l) => String(l.id) === clean);
+      }
+
+      if (strId.startsWith("task-")) {
+        return lists.find((list) =>
+          list.tasks?.some((task) => String(task.id) === clean)
+        );
+      }
+
+      // Fallback for legacy/unprefixed (shouldn't happen in normal flow)
+      if (lists.find((l) => String(l.id) === clean)) {
+        return lists.find((l) => String(l.id) === clean);
       }
       return lists.find((list) =>
-        list.tasks?.some((task) => String(task.id) === String(id))
+        list.tasks?.some((task) => String(task.id) === clean)
       );
     },
     [lists]
@@ -73,8 +104,9 @@ export function KanbanBoard({
 
   const findTaskById = React.useCallback(
     (id: string | number): Task | null => {
+      const clean = cleanupId(id);
       for (const list of lists) {
-        const task = list.tasks?.find((t) => String(t.id) === String(id));
+        const task = list.tasks?.find((t) => String(t.id) === clean);
         if (task) return task;
       }
       return null;
@@ -127,8 +159,8 @@ export function KanbanBoard({
     const activeId = active.id;
     const overId = over.id;
 
-    const activeContainer = findContainer(activeId as string | number);
-    const overContainer = findContainer(overId as string | number);
+    const activeContainer = findContainer(activeId);
+    const overContainer = findContainer(overId);
 
     if (
       !activeContainer ||
@@ -143,14 +175,14 @@ export function KanbanBoard({
       const overItems = overContainer.tasks || [];
 
       const activeIndex = activeItems.findIndex(
-        (i: Task) => String(i.id) === String(activeId)
+        (i: Task) => String(i.id) === cleanupId(activeId)
       );
       const overIndex = overItems.findIndex(
-        (i: Task) => String(i.id) === String(overId)
+        (i: Task) => String(i.id) === cleanupId(overId)
       );
 
       let newIndex: number;
-      if (overContainer.id === overId) {
+      if (String(overId).startsWith("col-")) {
         newIndex = overItems.length;
       } else {
         const isBelowLastItem =
@@ -167,7 +199,7 @@ export function KanbanBoard({
           return {
             ...list,
             tasks: activeItems.filter(
-              (i: Task) => String(i.id) !== String(activeId)
+              (i: Task) => String(i.id) !== cleanupId(activeId)
             ),
           };
         }
@@ -196,32 +228,142 @@ export function KanbanBoard({
 
     if (!over) return;
 
-    const activeId = active.id as string | number;
-    const overId = over.id as string | number;
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const cleanActiveId = cleanupId(activeId);
+    const cleanOverId = cleanupId(overId);
 
     const activeContainer = findContainer(activeId);
     const overContainer = findContainer(overId);
 
     if (!activeContainer || !overContainer) return;
 
+    // Handle reordering in same container
+    if (activeContainer.id === overContainer.id) {
+      const tasks = activeContainer.tasks || [];
+      const activeIndex = tasks.findIndex(
+        (t) => String(t.id) === cleanActiveId
+      );
+      const overIndex = tasks.findIndex((t) => String(t.id) === cleanOverId);
+
+      if (activeIndex !== overIndex) {
+        // Optimistic update
+        const newTasks = arrayMove(tasks, activeIndex, overIndex);
+
+        setLists((prev) =>
+          prev.map((l) => {
+            if (l.id === activeContainer.id) {
+              return { ...l, tasks: newTasks };
+            }
+            return l;
+          })
+        );
+
+        try {
+          await taskService.moveTask(
+            cleanActiveId,
+            activeContainer.id,
+            overIndex
+          );
+        } catch {
+          toast.error("Failed to move task");
+          if (onRefresh) onRefresh();
+        }
+      }
+      return;
+    }
+
+    // Handle moving to different container
     const overTasks = overContainer.tasks || [];
     let overIndex = overTasks.findIndex(
-      (i: Task) => String(i.id) === String(overId)
+      (i: Task) => String(i.id) === cleanOverId
     );
 
     // If dropping on the container itself (empty or bottom), place at the end
-    if (overIndex === -1) {
+    if (overIndex === -1 && overId.startsWith("col-")) {
+      overIndex = overTasks.length;
+    } else if (overIndex === -1) {
+      // In case we dropped on an empty list but didn't match the col- ID for some reason
       overIndex = overTasks.length;
     }
 
+    // Optimistically update local state to move the task
+    // Optimistically update local state to move the task
+    setLists((prev) => {
+      // 1. Find the task in the current state (prev) regardless of where findContainer thought it was
+      let sourceListIndex = -1;
+      let taskIndex = -1;
+      let taskToMove: Task | undefined;
+
+      for (let i = 0; i < prev.length; i++) {
+        const tIndex = prev[i].tasks?.findIndex(
+          (t) => String(t.id) === cleanActiveId
+        );
+        if (tIndex !== undefined && tIndex !== -1) {
+          sourceListIndex = i;
+          taskIndex = tIndex;
+          taskToMove = prev[i].tasks![tIndex];
+          break;
+        }
+      }
+
+      // 2. Find the target list
+      const targetListIndex = prev.findIndex(
+        (l) => String(l.id) === String(overContainer.id)
+      );
+
+      if (!taskToMove || sourceListIndex === -1 || targetListIndex === -1) {
+        return prev;
+      }
+
+      // 3. Create new state
+      const newLists = [...prev];
+
+      // If source and target are same (meaning onDragOver already moved it completely),
+      // we might just need to ensure order, but usually onDragOver handles visual.
+      // However, if we reached this block, findContainer check said they were different in render-state.
+      if (sourceListIndex === targetListIndex) {
+        // Task is already in target list in 'prev' state.
+        // We rely on the backend call to finalize properties.
+        return prev;
+      }
+
+      // 4. Remove from source
+      const newSourceTasks = [...(newLists[sourceListIndex].tasks || [])];
+      newSourceTasks.splice(taskIndex, 1);
+      newLists[sourceListIndex] = {
+        ...newLists[sourceListIndex],
+        tasks: newSourceTasks,
+      };
+
+      // 5. Add to target
+      const newTargetTasks = [...(newLists[targetListIndex].tasks || [])];
+      // Clamp index
+      let insertIndex = overIndex;
+      if (insertIndex < 0) insertIndex = newTargetTasks.length;
+      if (insertIndex > newTargetTasks.length)
+        insertIndex = newTargetTasks.length;
+
+      newTargetTasks.splice(insertIndex, 0, {
+        ...taskToMove,
+        list_id: newLists[targetListIndex].id,
+      });
+      newLists[targetListIndex] = {
+        ...newLists[targetListIndex],
+        tasks: newTargetTasks,
+      };
+
+      return newLists;
+    });
+
     try {
       const updatedTask = await taskService.moveTask(
-        activeId,
+        cleanActiveId,
         overContainer.id,
         overIndex
       );
 
-      // Update local state with the returned task to ensure status and other fields are synced
+      // Update local state with the returned task to ensure complete synchronization
       setLists((prev) => {
         return prev.map((list) => {
           if (list.id === overContainer.id) {
@@ -240,8 +382,7 @@ export function KanbanBoard({
       if (selectedTask?.id === updatedTask.id) {
         setSelectedTask(updatedTask);
       }
-    } catch (error) {
-      console.error("Move task failed:", error);
+    } catch {
       toast.error("Failed to persist task move");
       if (onRefresh) onRefresh();
     }
@@ -254,12 +395,10 @@ export function KanbanBoard({
 
   const collisionDetectionStrategy: CollisionDetection = React.useCallback(
     (args) => {
-      // First, try to find collisions with sortable items
-      const closestSortable = closestCorners(args);
-      if (closestSortable.length > 0) return closestSortable;
-
-      // If no sortable items found (e.g., empty column), find the container
-      return rectIntersection(args) || pointerWithin(args);
+      // Use pointerWithin first for precision, fallback to rectIntersection/closestCorners
+      return (
+        pointerWithin(args) || rectIntersection(args) || closestCorners(args)
+      );
     },
     []
   );
@@ -274,7 +413,7 @@ export function KanbanBoard({
     >
       <ScrollArea className="h-full">
         <div className="flex gap-6 p-6 h-full items-start">
-          <SortableContext items={lists.map((l: TaskList) => l.id)}>
+          <SortableContext items={lists.map((l: TaskList) => `col-${l.id}`)}>
             {lists.map((list: TaskList) => (
               <KanbanColumn
                 key={list.id}
@@ -317,6 +456,8 @@ export function KanbanBoard({
         open={!!selectedTask}
         onOpenChange={(open) => !open && setSelectedTask(null)}
         onRefresh={onRefresh}
+        customFieldDefinitions={customFieldDefinitions}
+        onAddProperty={onAddProperty}
       />
 
       {isTaskDialogOpen && (

@@ -32,7 +32,7 @@ export function KanbanTask({ task, isOverlay, onClick }: KanbanTaskProps) {
     transition,
     isDragging,
   } = useSortable({
-    id: task.id,
+    id: `task-${task.id}`,
     disabled: isOverlay,
     data: {
       type: "Task",

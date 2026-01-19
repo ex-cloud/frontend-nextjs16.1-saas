@@ -307,6 +307,7 @@ export function TasksTab({
               onOpenChange={(open) => !open && setSelectedTask(null)}
               onRefresh={onRefresh}
               customFieldDefinitions={project.custom_field_definitions || []}
+              onAddProperty={handleAddCustomField}
             />
           )}
         </div>

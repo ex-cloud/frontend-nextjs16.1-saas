@@ -45,7 +45,14 @@ export function TaskSheetComments({
 
   return (
     <div className="space-y-6 pt-12 border-t">
-      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-4">
+      <div
+        className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-4 cursor-pointer hover:text-foreground transition-colors"
+        onClick={() => {
+          // Basic focus logic if direct ref is not available, or just visual feedback.
+          // To be robust, we'll add a ref to the Textarea in the next step.
+          document.getElementById("comment-input")?.focus();
+        }}
+      >
         <MessageSquare className="h-4 w-4" />
         <span>Comments</span>
       </div>
@@ -84,7 +91,8 @@ export function TaskSheetComments({
         </Avatar>
         <div className="flex-1 flex flex-col gap-3">
           <Textarea
-            placeholder="Add a comment..."
+            id="comment-input"
+            placeholder="Add a comment... (Press click on 'Comments' header to focus here too)"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             className="min-h-[80px] bg-muted/20 border-none focus-visible:ring-1 resize-none text-sm"

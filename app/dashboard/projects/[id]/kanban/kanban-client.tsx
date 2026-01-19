@@ -18,8 +18,16 @@ import {
   useBoardLists,
 } from "@/hooks/use-projects";
 
+import { CustomFieldType } from "@/types/project";
+import { projectService } from "@/lib/api/services/project.service";
+import { toast } from "sonner";
+
 export function KanbanClient({ projectId }: KanbanClientProps) {
-  const { data: project, isLoading: loadingProject } = useProject(projectId);
+  const {
+    data: project,
+    isLoading: loadingProject,
+    refetch: refetchProject,
+  } = useProject(projectId);
   const { data: boards, isLoading: loadingBoards } =
     useProjectBoards(projectId);
 
@@ -38,7 +46,23 @@ export function KanbanClient({ projectId }: KanbanClientProps) {
 
   const handleRefresh = React.useCallback(() => {
     refetchLists();
-  }, [refetchLists]);
+    refetchProject();
+  }, [refetchLists, refetchProject]);
+
+  const handleAddCustomField = async (type: CustomFieldType) => {
+    if (!project) return;
+    try {
+      await projectService.createCustomField(String(project.id), {
+        name: `New ${type} field`,
+        type,
+        position: project?.custom_field_definitions?.length || 0,
+      });
+      toast.success("Property added");
+      refetchProject();
+    } catch {
+      toast.error("Failed to add property");
+    }
+  };
 
   if (loading) {
     return (
@@ -115,6 +139,8 @@ export function KanbanClient({ projectId }: KanbanClientProps) {
             initialLists={lists}
             board={{ id: activeBoard.id, project_id: activeBoard.project_id }}
             onRefresh={handleRefresh}
+            customFieldDefinitions={project.custom_field_definitions || []}
+            onAddProperty={handleAddCustomField}
           />
         )}
       </div>

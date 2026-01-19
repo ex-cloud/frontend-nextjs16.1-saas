@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   Task,
   Comment,
   ProjectMember,
   CustomFieldDefinition,
   CustomFieldFile,
+  CustomFieldType,
 } from "@/types/project";
 import { taskService } from "@/lib/api/services/task.service";
 import { projectService } from "@/lib/api/services/project.service";
@@ -27,6 +27,7 @@ interface TaskSheetProps {
   onOpenChange: (open: boolean) => void;
   onRefresh?: () => void;
   customFieldDefinitions?: CustomFieldDefinition[];
+  onAddProperty?: (type: CustomFieldType) => void;
 }
 
 export function TaskSheet({
@@ -35,6 +36,7 @@ export function TaskSheet({
   onOpenChange,
   onRefresh,
   customFieldDefinitions,
+  onAddProperty,
 }: TaskSheetProps) {
   const [comments, setComments] = React.useState<Comment[]>([]);
   const [isTimerRunning, setIsTimerRunning] = React.useState(false);
@@ -203,7 +205,8 @@ export function TaskSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-[700px] p-0 flex flex-col bg-background h-full">
-        <ScrollArea className="flex-1">
+        <SheetTitle className="sr-only">Task Details</SheetTitle>
+        <div className="flex-1 overflow-y-auto">
           <div className="flex flex-col min-h-full">
             <TaskSheetHeader
               task={task}
@@ -216,7 +219,7 @@ export function TaskSheet({
             />
 
             {/* Main Content Area */}
-            <div className="px-12 py-10 space-y-12 max-w-full">
+            <div className="px-12 pt-10 pb-40 space-y-12 max-w-full">
               <TaskSheetTitle task={task} onUpdate={handleUpdate} />
 
               {/* Properties Section */}
@@ -229,6 +232,7 @@ export function TaskSheet({
                 onFileUpload={handleFileUpload}
                 onRemoveFile={removeFile}
                 isLoading={isLoading}
+                onAddProperty={onAddProperty}
               />
 
               {/* Description Section */}
@@ -242,7 +246,7 @@ export function TaskSheet({
               />
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );

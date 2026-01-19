@@ -29,7 +29,6 @@ import {
   ListFilter,
   Tags,
   Calculator,
-  Image as ImageIcon,
   File as FileIcon,
   Star,
   Activity,
@@ -44,11 +43,21 @@ import {
   CustomFieldDefinition,
   CustomFieldOptions,
   CustomFieldFile,
+  CustomFieldType,
 } from "@/types/project";
 import { cn } from "@/lib/utils";
 import { AdvancedDatePicker } from "../../dynamic/AdvancedDatePicker";
 import { evaluateFormula } from "@/lib/utils/formula-evaluator";
 import { Input } from "@/components/ui/input";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface TaskSheetPropertiesProps {
   task: Task;
@@ -58,6 +67,7 @@ interface TaskSheetPropertiesProps {
   onUpdateCustomField: (fieldId: string | number, value: unknown) => void;
   onFileUpload: (defId: string | number, file: File) => void;
   onRemoveFile: (defId: string | number, index: number) => void;
+  onAddProperty?: (type: CustomFieldType) => void;
   isLoading?: boolean;
 }
 
@@ -69,8 +79,59 @@ export function TaskSheetProperties({
   onUpdateCustomField,
   onFileUpload,
   onRemoveFile,
+  onAddProperty,
   isLoading,
 }: TaskSheetPropertiesProps) {
+  const [previewFile, setPreviewFile] = React.useState<{
+    url: string;
+    name: string;
+    type: string;
+  } | null>(null);
+
+  const propertyTypes: {
+    type: CustomFieldType;
+    icon: React.ReactNode;
+    label: string;
+  }[] = [
+    { type: "text", icon: <ListFilter className="h-4 w-4" />, label: "Text" },
+    {
+      type: "number",
+      icon: <Calculator className="h-4 w-4" />,
+      label: "Number",
+    },
+    { type: "date", icon: <CalendarIcon className="h-4 w-4" />, label: "Date" },
+    {
+      type: "checkbox",
+      icon: <CheckSquare className="h-4 w-4" />,
+      label: "Checkbox",
+    },
+    {
+      type: "select",
+      icon: <ListFilter className="h-4 w-4" />,
+      label: "Select",
+    },
+    {
+      type: "multi_select",
+      icon: <Tags className="h-4 w-4" />,
+      label: "Multi Select",
+    },
+    { type: "files", icon: <Paperclip className="h-4 w-4" />, label: "Files" },
+    { type: "rating", icon: <Star className="h-4 w-4" />, label: "Rating" },
+    {
+      type: "progress",
+      icon: <Activity className="h-4 w-4" />,
+      label: "Progress",
+    },
+    { type: "url", icon: <LinkIcon className="h-4 w-4" />, label: "URL" },
+    { type: "email", icon: <Mail className="h-4 w-4" />, label: "Email" },
+    { type: "phone", icon: <Phone className="h-4 w-4" />, label: "Phone" },
+    {
+      type: "formula",
+      icon: <Calculator className="h-4 w-4" />,
+      label: "Formula",
+    },
+  ];
+
   return (
     <div className="space-y-1.5 -ml-1">
       {/* Assignee Property */}
@@ -247,11 +308,26 @@ export function TaskSheetProperties({
                     >
                       {value ? (
                         (() => {
-                          const d = new Date(String(value));
+                          // Fix Date Parsing for Ranges
+                          const dateStr = String(value);
+                          if (dateStr.includes(" -> ")) {
+                            const [startSub, endSub] = dateStr.split(" -> ");
+                            const startObj = new Date(startSub);
+                            const endObj = new Date(endSub);
+                            if (isValid(startObj) && isValid(endObj)) {
+                              return (
+                                <span>
+                                  {format(startObj, "MMM d")} →{" "}
+                                  {format(endObj, "MMM d")}
+                                </span>
+                              );
+                            }
+                          }
+
+                          const d = new Date(dateStr);
                           if (!isValid(d)) return <span>Invalid Date</span>;
                           const hasTime =
-                            String(value).includes(" ") ||
-                            String(value).includes("T");
+                            dateStr.includes(" ") || dateStr.includes("T");
                           return format(
                             d,
                             hasTime ? "MMMM d, yyyy HH:mm" : "MMMM d, yyyy"
@@ -348,27 +424,84 @@ export function TaskSheetProperties({
               ) : def.type === "files" ? (
                 <div className="flex flex-col gap-1 w-full p-1">
                   <div className="flex flex-wrap gap-1.5">
-                    {((value as CustomFieldFile[]) || []).map((file, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-md border text-[10px] group/file relative"
-                      >
-                        {/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(file.url) ? (
-                          <ImageIcon className="h-3 w-3 text-blue-500" />
-                        ) : (
-                          <FileIcon className="h-3 w-3 text-slate-500" />
-                        )}
-                        <span className="truncate max-w-[100px]">
-                          {file.name}
-                        </span>
-                        <button
-                          onClick={() => onRemoveFile(def.id, i)}
-                          className="opacity-0 group-hover/file:opacity-100 hover:text-destructive transition-opacity"
+                    {((value as CustomFieldFile[]) || []).map((file, i) => {
+                      const fileUrl =
+                        typeof file === "string" ? file : file.url;
+                      const fileName =
+                        typeof file === "string"
+                          ? (file as string).split("/").pop()
+                          : file.name;
+                      const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(
+                        fileUrl
+                      );
+                      const isPdf = /\.pdf$/i.test(fileUrl);
+                      const isWord = /\.(doc|docx)$/i.test(fileUrl);
+                      const isExcel = /\.(xls|xlsx|csv)$/i.test(fileUrl);
+                      const isPpt = /\.(ppt|pptx)$/i.test(fileUrl);
+                      const isZip = /\.(zip|rar|7z)$/i.test(fileUrl);
+
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-md border text-[10px] group/file relative cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isImage) {
+                              setPreviewFile({
+                                url: fileUrl,
+                                name: fileName || "File",
+                                type: "image",
+                              });
+                            } else {
+                              window.open(fileUrl, "_blank");
+                            }
+                          }}
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
+                          {isImage ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={fileUrl}
+                              alt={fileName}
+                              className="h-4 w-4 object-cover rounded-sm"
+                            />
+                          ) : isPdf ? (
+                            <span className="text-[8px] font-bold text-red-500">
+                              PDF
+                            </span>
+                          ) : isWord ? (
+                            <span className="text-[8px] font-bold text-blue-500">
+                              DOC
+                            </span>
+                          ) : isExcel ? (
+                            <span className="text-[8px] font-bold text-green-500">
+                              XLS
+                            </span>
+                          ) : isPpt ? (
+                            <span className="text-[8px] font-bold text-orange-500">
+                              PPT
+                            </span>
+                          ) : isZip ? (
+                            <span className="text-[8px] font-bold text-yellow-500">
+                              ZIP
+                            </span>
+                          ) : (
+                            <FileIcon className="h-3 w-3 text-slate-500" />
+                          )}
+                          <span className="truncate max-w-[100px]">
+                            {fileName}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemoveFile(def.id, i);
+                            }}
+                            className="opacity-0 group-hover/file:opacity-100 hover:text-destructive transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -472,14 +605,60 @@ export function TaskSheetProperties({
       })}
 
       {/* Add a property Button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="mt-2 h-8 px-2 text-muted-foreground hover:text-foreground text-sm gap-2"
+      {onAddProperty ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 h-8 px-2 text-muted-foreground hover:text-foreground text-sm gap-2"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Add a property
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="w-56 bg-white dark:bg-zinc-950 border shadow-lg z-[9999]"
+          >
+            {propertyTypes.map((type) => (
+              <DropdownMenuItem
+                key={type.label}
+                onClick={() => onAddProperty(type.type)}
+                className="gap-2 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
+                {type.icon}
+                <span>{type.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+
+      {/* Preview Dialog */}
+      <Dialog
+        open={!!previewFile}
+        onOpenChange={(open) => !open && setPreviewFile(null)}
       >
-        <PlusIcon className="h-4 w-4" />
-        Add a property
-      </Button>
+        <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-transparent border-none shadow-none text-white sm:max-w-screen-lg">
+          <DialogTitle className="sr-only">
+            Preview {previewFile?.name}
+          </DialogTitle>
+          <div className="relative flex flex-col items-center justify-center w-full h-full">
+            {previewFile?.type === "image" && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewFile.url}
+                alt={previewFile.name}
+                className="max-h-[85vh] w-auto object-contain rounded-md shadow-2xl"
+              />
+            )}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-white/90">
+              {previewFile?.name}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

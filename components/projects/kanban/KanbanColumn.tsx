@@ -34,7 +34,7 @@ export function KanbanColumn({
     transition,
     isDragging,
   } = useSortable({
-    id: list.id,
+    id: `col-${list.id}`,
     data: {
       type: "Column",
       list,
@@ -88,7 +88,7 @@ export function KanbanColumn({
       {/* Tasks List */}
       <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-3 min-h-[100px]">
         <SortableContext
-          items={tasks.map((t) => t.id)}
+          items={tasks.map((t) => `task-${t.id}`)}
           strategy={verticalListSortingStrategy}
         >
           {tasks.map((task) => (

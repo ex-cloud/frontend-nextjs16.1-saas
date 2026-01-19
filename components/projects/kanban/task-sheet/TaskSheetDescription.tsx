@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Task } from "@/types/project";
+import { AlignLeft } from "lucide-react";
 
 interface TaskSheetDescriptionProps {
   task: Task;
@@ -29,6 +30,10 @@ export function TaskSheetDescription({
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+        <AlignLeft className="h-4 w-4" />
+        <span>Description</span>
+      </div>
       {isEditing ? (
         <div className="space-y-3">
           <Textarea
