@@ -40,6 +40,7 @@ import { taskService } from "@/lib/api/services/task.service";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useBroadcastChannel } from "@/lib/broadcast";
 
 interface KanbanBoardProps {
   initialLists: TaskList[];
@@ -67,6 +68,9 @@ export function KanbanBoard({
   const [activeListId, setActiveListId] = React.useState<
     string | number | null
   >(null);
+
+  // Cross-tab synchronization
+  const { broadcast } = useBroadcastChannel();
 
   // Helper to cleanup dnd-kit IDs
   const cleanupId = (id: string | number) => {
@@ -376,6 +380,13 @@ export function KanbanBoard({
           }
           return list;
         });
+      });
+
+      // Broadcast to other tabs that task was moved (for real-time sync)
+      broadcast("TASK_MOVED", {
+        projectId: board.project_id,
+        taskId: updatedTask.id,
+        listId: overContainer.id,
       });
 
       // Also update active/selected task if it matches

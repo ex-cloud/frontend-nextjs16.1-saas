@@ -44,6 +44,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 
 import { useProjects } from "@/hooks/use-projects";
+import { useBroadcastChannel, type BroadcastMessage } from "@/lib/broadcast";
 
 export function ProjectsClient() {
   const router = useRouter();
@@ -77,6 +78,30 @@ export function ProjectsClient() {
     refetch: fetchProjects,
   } = useProjects(filters);
   const projects = projectsRes?.data || [];
+
+  // Listen for cross-tab broadcasts to auto-refresh data
+  const handleBroadcast = React.useCallback(
+    (message: BroadcastMessage) => {
+      // Refresh when any task-related change occurs
+      if (
+        message.type === "TASK_MOVED" ||
+        message.type === "TASK_CREATED" ||
+        message.type === "TASK_UPDATED" ||
+        message.type === "TASK_DELETED" ||
+        message.type === "PROJECT_PROGRESS_CHANGED" ||
+        message.type === "REFRESH_PROJECTS"
+      ) {
+        console.log(
+          "[ProjectsClient] Received broadcast, refreshing...",
+          message.type
+        );
+        fetchProjects();
+      }
+    },
+    [fetchProjects]
+  );
+
+  useBroadcastChannel(handleBroadcast);
 
   return (
     <div className="flex flex-col gap-6 p-6 text-foreground">
