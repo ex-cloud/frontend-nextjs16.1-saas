@@ -5,6 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { projectService } from "@/lib/api/services/project.service";
 import { departmentApi } from "@/lib/api/departments";
+import { createEcho } from "@/lib/echo";
+import Echo from "laravel-echo";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CreateProjectInput,
   ProjectStatus,
@@ -44,6 +47,7 @@ export default function ProjectSettingsPage() {
   const [selectedDeptId, setSelectedDeptId] = React.useState<
     string | undefined
   >();
+  const queryClient = useQueryClient();
 
   const {
     data: project,
@@ -89,6 +93,48 @@ export default function ProjectSettingsPage() {
     enabled: !!selectedDeptId && selectedDeptId !== "none",
     staleTime: 300000,
   });
+
+  // Real-time synchronization for department users
+  React.useEffect(() => {
+    if (!selectedDeptId || selectedDeptId === "none") return;
+
+    let echoInstance: Echo<"pusher"> | null = null;
+    const channelName = `departments.${selectedDeptId}`;
+
+    const setupRealtime = async () => {
+      const echo = await createEcho();
+      if (!echo) return;
+      echoInstance = echo;
+
+      const channel = echo.private(channelName);
+
+      interface DepartmentUserEvent {
+        userId: number;
+        departmentId: number;
+      }
+
+      const handleUserChange = (e: DepartmentUserEvent) => {
+        console.log(
+          `[ProjectSettings] User change detected in department ${selectedDeptId}:`,
+          e,
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["department-users", selectedDeptId],
+        });
+      };
+
+      channel.listen(".user.assigned", handleUserChange);
+      channel.listen(".user.unassigned", handleUserChange);
+    };
+
+    setupRealtime();
+
+    return () => {
+      if (echoInstance) {
+        echoInstance.leave(channelName);
+      }
+    };
+  }, [selectedDeptId, queryClient]);
 
   const availableOwners = React.useMemo(() => {
     // Map HrmUser/AppUser to a common interface for GeneralTab
