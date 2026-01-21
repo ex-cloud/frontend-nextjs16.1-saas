@@ -17,6 +17,7 @@ import {
   Trash,
 } from "lucide-react";
 import type { Project, ProjectFilters, ProjectStatus } from "@/types/project";
+import { User } from "@/types/user";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { ProjectDialog } from "@/components/projects/modals/ProjectDialog";
 import { DeleteProjectDialog } from "@/components/projects/modals/DeleteProjectDialog";
@@ -44,7 +45,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { cn } from "@/lib/utils";
 
 import { useProjects } from "@/hooks/use-projects";
+import { createEcho } from "@/lib/echo";
 import { useBroadcastChannel, type BroadcastMessage } from "@/lib/broadcast";
+import Echo from "laravel-echo";
 
 export function ProjectsClient() {
   const router = useRouter();
@@ -77,9 +80,82 @@ export function ProjectsClient() {
     isLoading: loading,
     refetch: fetchProjects,
   } = useProjects(filters);
-  const projects = projectsRes?.data || [];
+  const projects: Project[] = React.useMemo(
+    () => projectsRes?.data || [],
+    [projectsRes?.data]
+  );
 
-  // Listen for cross-tab broadcasts to auto-refresh data
+  // Listen for real-time updates via Laravel Echo (Cross-device)
+  const projectIds = React.useMemo(
+    () => projects.map((p) => p.id).join(","),
+    [projects]
+  );
+
+  React.useEffect(() => {
+    let echoInstance: Echo<"pusher"> | null = null;
+    const activeChannels: string[] = [];
+
+    const setupEcho = async () => {
+      try {
+        const echo = await createEcho();
+        if (!echo) return;
+        echoInstance = echo;
+
+        for (const project of projects) {
+          const channelName = `projects.${project.id}`;
+          const channel = echo.private(channelName);
+
+          channel.listen(".task.moved", () => {
+            console.log(
+              `[ProjectsClient] Real-time update: Task moved in project ${project.id}, refreshing...`
+            );
+            fetchProjects();
+          });
+
+          channel.listen(".task.deleted", () => {
+            console.log(
+              `[ProjectsClient] Real-time update: Task deleted in project ${project.id}, refreshing...`
+            );
+            fetchProjects();
+          });
+
+          channel.listen(
+            ".project.progress_updated",
+            (e: { progress: number }) => {
+              console.log(
+                `[ProjectsClient] Real-time progress update for project ${project.id}: ${e.progress}%`
+              );
+              fetchProjects(); // Refresh to get the latest task counts and other potential changes
+            }
+          );
+
+          activeChannels.push(channelName);
+        }
+      } catch (err) {
+        console.error("[ProjectsClient] Echo subscription failed:", err);
+      }
+    };
+
+    if (projects.length > 0) {
+      void setupEcho();
+    }
+
+    return () => {
+      const currentEcho = echoInstance;
+      if (currentEcho) {
+        for (const name of activeChannels) {
+          try {
+            currentEcho.leave(name);
+          } catch {
+            // Silence cleanup errors
+          }
+        }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectIds, fetchProjects]);
+
+  // Listen for cross-tab broadcasts to auto-refresh data (Same browser)
   const handleBroadcast = React.useCallback(
     (message: BroadcastMessage) => {
       // Refresh when any task-related change occurs
@@ -303,22 +379,24 @@ export function ProjectsClient() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex -space-x-1.5">
-                          {(project.members || []).slice(0, 3).map((u) => (
-                            <Avatar
-                              key={u.id}
-                              className="h-6 w-6 border-2 border-background ring-1 ring-sidebar-border/20"
-                            >
-                              <AvatarImage
-                                src={
-                                  u.avatar_url ||
-                                  `https://avatar.vercel.sh/${u.id}.png`
-                                }
-                              />
-                              <AvatarFallback className="text-[8px]">
-                                {u.name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                          ))}
+                          {(project.members || [])
+                            .slice(0, 3)
+                            .map((u: User) => (
+                              <Avatar
+                                key={u.id}
+                                className="h-6 w-6 border-2 border-background ring-1 ring-sidebar-border/20"
+                              >
+                                <AvatarImage
+                                  src={
+                                    u.avatar_url ||
+                                    `https://avatar.vercel.sh/${u.id}.png`
+                                  }
+                                />
+                                <AvatarFallback className="text-[8px]">
+                                  {u.name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                            ))}
                           {(project.members?.length || 0) > 3 && (
                             <div className="h-6 w-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[8px] font-bold text-muted-foreground">
                               +{(project.members?.length || 0) - 3}

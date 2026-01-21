@@ -37,10 +37,12 @@ import { AddListDialog } from "@/components/projects/modals/AddListDialog";
 import { TaskSheet } from "@/components/projects/kanban/TaskSheet";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { taskService } from "@/lib/api/services/task.service";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useBroadcastChannel } from "@/lib/broadcast";
+import { createEcho } from "@/lib/echo";
+import Echo from "laravel-echo";
 
 interface KanbanBoardProps {
   initialLists: TaskList[];
@@ -72,6 +74,57 @@ export function KanbanBoard({
   // Cross-tab synchronization
   const { broadcast } = useBroadcastChannel();
 
+  // Real-time synchronization (Cross-device/User)
+  React.useEffect(() => {
+    let echoInstance: Echo<"pusher"> | null = null;
+    const channelName = `projects.${board.project_id}`;
+
+    const setupRealtime = async () => {
+      const echo = await createEcho();
+      if (!echo) return;
+      echoInstance = echo;
+
+      const channel = echo.private(channelName);
+
+      channel.listen(".task.moved", (e: { task: Task }) => {
+        console.log("[KanbanBoard] Task moved event received:", e);
+        if (onRefresh) onRefresh();
+
+        // Update selected task in modal if it's the one that moved
+        setSelectedTask((prev) => {
+          if (prev && String(prev.id) === String(e.task.id)) {
+            return e.task;
+          }
+          return prev;
+        });
+      });
+
+      channel.listen(
+        ".task.deleted",
+        (e: { projectId: number | string; taskId: number | string }) => {
+          console.log("[KanbanBoard] Task deleted event received:", e);
+          if (onRefresh) onRefresh();
+
+          // Close modal if the open task was deleted
+          setSelectedTask((prev) => {
+            if (prev && String(prev.id) === String(e.taskId)) {
+              return null;
+            }
+            return prev;
+          });
+        },
+      );
+    };
+
+    setupRealtime();
+
+    return () => {
+      if (echoInstance) {
+        echoInstance.leave(channelName);
+      }
+    };
+  }, [board.project_id, onRefresh]);
+
   // Helper to cleanup dnd-kit IDs
   const cleanupId = (id: string | number) => {
     return String(id).replace(/^(task-|col-)/, "");
@@ -91,7 +144,7 @@ export function KanbanBoard({
 
       if (strId.startsWith("task-")) {
         return lists.find((list) =>
-          list.tasks?.some((task) => String(task.id) === clean)
+          list.tasks?.some((task) => String(task.id) === clean),
         );
       }
 
@@ -100,10 +153,10 @@ export function KanbanBoard({
         return lists.find((l) => String(l.id) === clean);
       }
       return lists.find((list) =>
-        list.tasks?.some((task) => String(task.id) === clean)
+        list.tasks?.some((task) => String(task.id) === clean),
       );
     },
-    [lists]
+    [lists],
   );
 
   const findTaskById = React.useCallback(
@@ -115,7 +168,7 @@ export function KanbanBoard({
       }
       return null;
     },
-    [lists]
+    [lists],
   );
 
   // Sync state when initialLists prop changes (single useEffect, no duplicates)
@@ -147,13 +200,22 @@ export function KanbanBoard({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const onDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const task = findTaskById(active.id as string | number);
     if (task) setActiveTask(task);
+  };
+
+  const mapStatusFromSlug = (slug: string): string => {
+    const s = slug.toLowerCase();
+    if (s.includes("done") || s.includes("complete")) return "done";
+    if (s.includes("review") || s.includes("qa")) return "review";
+    if (s.includes("progress") || s.includes("doing")) return "in_progress";
+    if (s.includes("todo") || s.includes("to-do")) return "todo";
+    return s.replace("-", "_");
   };
 
   const onDragOver = (event: DragOverEvent) => {
@@ -179,10 +241,10 @@ export function KanbanBoard({
       const overItems = overContainer.tasks || [];
 
       const activeIndex = activeItems.findIndex(
-        (i: Task) => String(i.id) === cleanupId(activeId)
+        (i: Task) => String(i.id) === cleanupId(activeId),
       );
       const overIndex = overItems.findIndex(
-        (i: Task) => String(i.id) === cleanupId(overId)
+        (i: Task) => String(i.id) === cleanupId(overId),
       );
 
       let newIndex: number;
@@ -203,7 +265,7 @@ export function KanbanBoard({
           return {
             ...list,
             tasks: activeItems.filter(
-              (i: Task) => String(i.id) !== cleanupId(activeId)
+              (i: Task) => String(i.id) !== cleanupId(activeId),
             ),
           };
         }
@@ -214,6 +276,7 @@ export function KanbanBoard({
             newTasks.splice(newIndex, 0, {
               ...taskToMove,
               list_id: overContainer.id,
+              status: mapStatusFromSlug(overContainer.slug),
             });
           }
           return {
@@ -246,11 +309,14 @@ export function KanbanBoard({
     if (activeContainer.id === overContainer.id) {
       const tasks = activeContainer.tasks || [];
       const activeIndex = tasks.findIndex(
-        (t) => String(t.id) === cleanActiveId
+        (t) => String(t.id) === cleanActiveId,
       );
       const overIndex = tasks.findIndex((t) => String(t.id) === cleanOverId);
 
       if (activeIndex !== overIndex) {
+        // Capture previous state for rollback
+        const previousLists = [...lists];
+
         // Optimistic update
         const newTasks = arrayMove(tasks, activeIndex, overIndex);
 
@@ -260,17 +326,19 @@ export function KanbanBoard({
               return { ...l, tasks: newTasks };
             }
             return l;
-          })
+          }),
         );
 
         try {
           await taskService.moveTask(
             cleanActiveId,
             activeContainer.id,
-            overIndex
+            overIndex,
           );
         } catch {
-          toast.error("Failed to move task");
+          // Rollback on failure
+          setLists(previousLists);
+          toast.error("Failed to move task. Reverting...");
           if (onRefresh) onRefresh();
         }
       }
@@ -280,7 +348,7 @@ export function KanbanBoard({
     // Handle moving to different container
     const overTasks = overContainer.tasks || [];
     let overIndex = overTasks.findIndex(
-      (i: Task) => String(i.id) === cleanOverId
+      (i: Task) => String(i.id) === cleanOverId,
     );
 
     // If dropping on the container itself (empty or bottom), place at the end
@@ -291,7 +359,9 @@ export function KanbanBoard({
       overIndex = overTasks.length;
     }
 
-    // Optimistically update local state to move the task
+    // Capture previous state for rollback
+    const previousLists = [...lists];
+
     // Optimistically update local state to move the task
     setLists((prev) => {
       // 1. Find the task in the current state (prev) regardless of where findContainer thought it was
@@ -301,7 +371,7 @@ export function KanbanBoard({
 
       for (let i = 0; i < prev.length; i++) {
         const tIndex = prev[i].tasks?.findIndex(
-          (t) => String(t.id) === cleanActiveId
+          (t) => String(t.id) === cleanActiveId,
         );
         if (tIndex !== undefined && tIndex !== -1) {
           sourceListIndex = i;
@@ -313,7 +383,7 @@ export function KanbanBoard({
 
       // 2. Find the target list
       const targetListIndex = prev.findIndex(
-        (l) => String(l.id) === String(overContainer.id)
+        (l) => String(l.id) === String(overContainer.id),
       );
 
       if (!taskToMove || sourceListIndex === -1 || targetListIndex === -1) {
@@ -325,10 +395,7 @@ export function KanbanBoard({
 
       // If source and target are same (meaning onDragOver already moved it completely),
       // we might just need to ensure order, but usually onDragOver handles visual.
-      // However, if we reached this block, findContainer check said they were different in render-state.
       if (sourceListIndex === targetListIndex) {
-        // Task is already in target list in 'prev' state.
-        // We rely on the backend call to finalize properties.
         return prev;
       }
 
@@ -351,6 +418,7 @@ export function KanbanBoard({
       newTargetTasks.splice(insertIndex, 0, {
         ...taskToMove,
         list_id: newLists[targetListIndex].id,
+        status: mapStatusFromSlug(newLists[targetListIndex].slug),
       });
       newLists[targetListIndex] = {
         ...newLists[targetListIndex],
@@ -364,7 +432,7 @@ export function KanbanBoard({
       const updatedTask = await taskService.moveTask(
         cleanActiveId,
         overContainer.id,
-        overIndex
+        overIndex,
       );
 
       // Update local state with the returned task to ensure complete synchronization
@@ -374,7 +442,9 @@ export function KanbanBoard({
             return {
               ...list,
               tasks: list.tasks?.map((t) =>
-                String(t.id) === String(updatedTask.id) ? { ...updatedTask } : t
+                String(t.id) === String(updatedTask.id)
+                  ? { ...updatedTask }
+                  : t,
               ),
             };
           }
@@ -389,12 +459,14 @@ export function KanbanBoard({
         listId: overContainer.id,
       });
 
-      // Also update active/selected task if it matches
-      if (selectedTask?.id === updatedTask.id) {
+      // Also update active/selected task if it matches (Safe comparison)
+      if (selectedTask && String(selectedTask.id) === String(updatedTask.id)) {
         setSelectedTask(updatedTask);
       }
     } catch {
-      toast.error("Failed to persist task move");
+      // Rollback on failure
+      setLists(previousLists);
+      toast.error("Failed to persist task move. Reverting...");
       if (onRefresh) onRefresh();
     }
   };
@@ -411,7 +483,7 @@ export function KanbanBoard({
         pointerWithin(args) || rectIntersection(args) || closestCorners(args)
       );
     },
-    []
+    [],
   );
 
   return (

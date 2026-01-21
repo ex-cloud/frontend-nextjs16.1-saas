@@ -48,7 +48,7 @@ export function TaskSheet({
   const [isTogglingTimer, setIsTogglingTimer] = React.useState(false);
 
   const fetchComments = React.useCallback(async () => {
-    if (task) {
+    if (task?.id) {
       try {
         const data = await taskService.getTaskComments(task.id);
         setComments(data);
@@ -56,10 +56,10 @@ export function TaskSheet({
         console.error("Failed to fetch comments:", error);
       }
     }
-  }, [task]);
+  }, [task?.id]);
 
   const fetchMembers = React.useCallback(async () => {
-    if (task) {
+    if (task?.project_id) {
       try {
         const members = await projectService.getProjectMembers(
           String(task.project_id)
@@ -69,10 +69,10 @@ export function TaskSheet({
         console.error("Failed to fetch project members:", error);
       }
     }
-  }, [task]);
+  }, [task?.project_id]);
 
   const checkRunningTimer = React.useCallback(async () => {
-    if (task) {
+    if (task?.id) {
       try {
         const response = await taskService.getActiveTimer();
         if (
@@ -87,15 +87,15 @@ export function TaskSheet({
         setIsTimerRunning(false);
       }
     }
-  }, [task]);
+  }, [task?.id]);
 
   React.useEffect(() => {
-    if (open && task) {
+    if (open && task?.id) {
       fetchComments();
       fetchMembers();
       checkRunningTimer();
     }
-  }, [open, task, fetchComments, fetchMembers, checkRunningTimer]);
+  }, [open, task?.id, fetchComments, fetchMembers, checkRunningTimer]);
 
   if (!task) return null;
 
