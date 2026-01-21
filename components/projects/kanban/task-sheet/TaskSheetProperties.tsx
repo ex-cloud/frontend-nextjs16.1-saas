@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import Image from "next/image";
 
 interface TaskSheetPropertiesProps {
   task: Task;
@@ -69,6 +70,54 @@ interface TaskSheetPropertiesProps {
   onRemoveFile: (defId: string | number, index: number) => void;
   onAddProperty?: (type: CustomFieldType) => void;
   isLoading?: boolean;
+}
+
+function PropertyInput({
+  value,
+  onUpdate,
+  placeholder,
+  className,
+  type = "text",
+  icon,
+}: {
+  value: string;
+  onUpdate: (val: string) => void;
+  placeholder?: string;
+  className?: string;
+  type?: string;
+  icon?: React.ReactNode;
+}) {
+  const [localValue, setLocalValue] = React.useState(value);
+
+  React.useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  return (
+    <div className="flex items-center gap-2 w-full px-1">
+      {icon}
+      <Input
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={() => {
+          if (localValue !== value) {
+            onUpdate(localValue);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
+          }
+        }}
+        className={cn(
+          "h-7 border-none bg-transparent hover:bg-muted/10 focus-visible:ring-0 p-0 transition-colors text-sm shadow-none",
+          className,
+        )}
+        placeholder={placeholder}
+        type={type}
+      />
+    </div>
+  );
 }
 
 export function TaskSheetProperties({
@@ -87,6 +136,23 @@ export function TaskSheetProperties({
     name: string;
     type: string;
   } | null>(null);
+
+  // Responsive state for custom fields to avoid persistence lag
+  const [localCustomValues, setLocalCustomValues] = React.useState(
+    task.custom_values || {},
+  );
+
+  React.useEffect(() => {
+    setLocalCustomValues(task.custom_values || {});
+  }, [task.custom_values]);
+
+  const handleCustomFieldUpdate = (
+    fieldId: string | number,
+    value: unknown,
+  ) => {
+    setLocalCustomValues((prev) => ({ ...prev, [String(fieldId)]: value }));
+    onUpdateCustomField(fieldId, value);
+  };
 
   const propertyTypes: {
     type: CustomFieldType;
@@ -134,49 +200,100 @@ export function TaskSheetProperties({
 
   return (
     <div className="space-y-1.5 -ml-1">
-      {/* Assignee Property */}
+      {/* Assignees Property (Multi-User) */}
       <div className="grid grid-cols-[140px_1fr] items-center group/prop min-h-[32px] hover:bg-muted/10 rounded px-1 transition-colors">
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Avatar className="h-4 w-4 grayscale opacity-70">
             <AvatarFallback className="text-[8px]">A</AvatarFallback>
           </Avatar>
-          <span>Assignee</span>
+          <span>Assignees</span>
         </div>
-        <div className="flex items-center">
-          <Select
-            value={String(task.assignee_id || "unassigned")}
-            onValueChange={(val) =>
-              onUpdate("assignee_id", val === "unassigned" ? null : val)
-            }
-          >
-            <SelectTrigger className="h-7 border-none bg-transparent hover:bg-muted/10 transition-colors p-1 w-auto min-w-[100px] shadow-none focus:ring-0">
-              <div className="flex items-center gap-2">
-                {task.assignee ? (
-                  <>
-                    <Avatar className="h-5 w-5">
-                      <AvatarImage
-                        src={`https://avatar.vercel.sh/${task.assignee.id}.png`}
+        <div className="flex items-center min-w-0">
+          <Popover>
+            <PopoverTrigger asChild>
+              <div className="flex flex-wrap gap-1 items-center py-1 cursor-pointer w-full min-h-[28px]">
+                {task.assignees && task.assignees.length > 0 ? (
+                  task.assignees.map((a) => (
+                    <Badge
+                      key={a.id}
+                      variant="secondary"
+                      className="gap-1 px-1.5 py-0 h-5 text-[10px] flex-shrink-0"
+                    >
+                      {a.name}
+                      <X
+                        className="h-3 w-3 hover:text-destructive transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const nextIds = task.assignees
+                            ?.filter((u) => u.id !== a.id)
+                            .map((u) => u.id);
+                          onUpdate("assignee_ids", nextIds);
+                        }}
                       />
-                      <AvatarFallback>{task.assignee.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">{task.assignee.name}</span>
-                  </>
+                    </Badge>
+                  ))
                 ) : (
-                  <span className="text-sm text-muted-foreground/50 italic">
+                  <span className="text-sm text-muted-foreground/40 italic px-1">
                     Unassigned
                   </span>
                 )}
               </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {projectMembers.map((m) => (
-                <SelectItem key={m.id} value={String(m.id)}>
-                  {m.user?.name || "Unknown"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-2 z-[100]" align="start">
+              <div className="space-y-1 max-h-60 overflow-y-auto">
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b mb-1">
+                  Project Members
+                </div>
+                {projectMembers.map((m) => {
+                  const uId = m.user?.id || m.id;
+                  const isAssigned = task.assignees?.some((u) => u.id === uId);
+                  return (
+                    <div
+                      key={m.id}
+                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 rounded cursor-pointer transition-colors"
+                      onClick={() => {
+                        const currentIds =
+                          task.assignees?.map((u) => u.id) || [];
+                        const nextIds = isAssigned
+                          ? currentIds.filter((id) => id !== uId)
+                          : [...currentIds, uId];
+                        onUpdate("assignee_ids", nextIds);
+                      }}
+                    >
+                      <Checkbox
+                        checked={isAssigned}
+                        className="pointer-events-none"
+                      />
+                      <div className="flex items-center gap-2 overflow-hidden flex-1">
+                        <Avatar className="h-5 w-5 flex-shrink-0">
+                          <AvatarImage src={m.user?.avatar_url} />
+                          <AvatarFallback className="text-[10px]">
+                            {m.user?.name?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm truncate">
+                          {m.user?.name || "Unknown"}
+                        </span>
+                        {m.is_team_assignment && (
+                          <Badge
+                            variant="outline"
+                            className="text-[8px] px-1 py-0 h-3 bg-muted/30"
+                          >
+                            Team
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {projectMembers.length === 0 && (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    No members added to this project.
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -199,7 +316,10 @@ export function TaskSheetProperties({
                 {(task.status || "To Do").replace("_", " ")}
               </Badge>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent
+              className="z-[100]"
+              onPointerDownOutside={(e) => e.preventDefault()}
+            >
               <SelectItem value="todo">To Do</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
               <SelectItem value="review">Review</SelectItem>
@@ -232,7 +352,7 @@ export function TaskSheetProperties({
                       String(task.due_date).includes("T");
                     return format(
                       d,
-                      hasTime ? "MMMM d, yyyy HH:mm" : "MMMM d, yyyy"
+                      hasTime ? "MMMM d, yyyy HH:mm" : "MMMM d, yyyy",
                     );
                   })()
                 ) : (
@@ -240,7 +360,11 @@ export function TaskSheetProperties({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent
+              className="w-auto p-0 z-[100]"
+              align="start"
+              onPointerDownOutside={(e) => e.preventDefault()}
+            >
               <AdvancedDatePicker
                 selected={task.due_date}
                 onSelect={(date) => onUpdate("due_date", date)}
@@ -252,13 +376,18 @@ export function TaskSheetProperties({
 
       {/* Custom Fields Properties */}
       {customFieldDefinitions?.map((def) => {
-        let value = task.custom_values?.[String(def.id)];
+        let value = localCustomValues[String(def.id)];
         if (def.type === "formula") {
           const formula = (def.options as CustomFieldOptions)?.formula || "";
           value = evaluateFormula(formula, task);
         }
 
-        const options = (def.options as CustomFieldOptions)?.options || [];
+        const optionsData = def.options as CustomFieldOptions;
+        const options = Array.isArray(optionsData?.options)
+          ? optionsData.options
+          : typeof optionsData?.options === "string"
+            ? JSON.parse(optionsData.options)
+            : [];
 
         return (
           <div
@@ -308,7 +437,6 @@ export function TaskSheetProperties({
                     >
                       {value ? (
                         (() => {
-                          // Fix Date Parsing for Ranges
                           const dateStr = String(value);
                           if (dateStr.includes(" -> ")) {
                             const [startSub, endSub] = dateStr.split(" -> ");
@@ -323,14 +451,13 @@ export function TaskSheetProperties({
                               );
                             }
                           }
-
                           const d = new Date(dateStr);
                           if (!isValid(d)) return <span>Invalid Date</span>;
                           const hasTime =
                             dateStr.includes(" ") || dateStr.includes("T");
                           return format(
                             d,
-                            hasTime ? "MMMM d, yyyy HH:mm" : "MMMM d, yyyy"
+                            hasTime ? "MMMM d, yyyy HH:mm" : "MMMM d, yyyy",
                           );
                         })()
                       ) : (
@@ -340,23 +467,30 @@ export function TaskSheetProperties({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent
+                    className="w-auto p-0 z-[100]"
+                    align="start"
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                  >
                     <AdvancedDatePicker
                       selected={value as string}
-                      onSelect={(date) => onUpdateCustomField(def.id, date)}
+                      onSelect={(date) => handleCustomFieldUpdate(def.id, date)}
                     />
                   </PopoverContent>
                 </Popover>
               ) : def.type === "select" ? (
                 <Select
                   value={String(value || "")}
-                  onValueChange={(val) => onUpdateCustomField(def.id, val)}
+                  onValueChange={(val) => handleCustomFieldUpdate(def.id, val)}
                 >
                   <SelectTrigger className="h-7 border-none bg-transparent hover:bg-muted/10 transition-colors p-1 w-auto min-w-[100px] shadow-none focus:ring-0">
                     <SelectValue placeholder="Empty" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {options.map((opt) => (
+                  <SelectContent
+                    className="z-[100]"
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                  >
+                    {options.map((opt: string) => (
                       <SelectItem key={opt} value={opt}>
                         {opt}
                       </SelectItem>
@@ -369,14 +503,14 @@ export function TaskSheetProperties({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-1 text-sm font-normal gap-1 hover:bg-muted/10"
+                      className="h-7 px-1 text-sm font-normal gap-1 hover:bg-muted/10 overflow-hidden max-w-full"
                     >
                       {Array.isArray(value) && value.length > 0 ? (
                         value.map((v, i) => (
                           <Badge
                             key={i}
                             variant="secondary"
-                            className="px-1 py-0 h-5 text-[10px]"
+                            className="px-1 py-0 h-5 text-[10px] flex-shrink-0"
                           >
                             {String(v)}
                           </Badge>
@@ -388,23 +522,30 @@ export function TaskSheetProperties({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-64 p-2" align="start">
-                    <div className="space-y-2">
-                      {options.map((opt) => {
+                  <PopoverContent
+                    className="w-64 p-2 z-[100]"
+                    align="start"
+                    onPointerDownOutside={(e) => e.preventDefault()}
+                  >
+                    <div className="space-y-1">
+                      {options.map((opt: string) => {
                         const current = Array.isArray(value) ? value : [];
                         const isChecked = current.includes(opt);
                         return (
                           <div
                             key={opt}
-                            className="flex items-center gap-2 px-2 py-1 hover:bg-muted/50 rounded cursor-pointer"
+                            className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 rounded cursor-pointer"
                             onClick={() => {
                               const next = isChecked
                                 ? current.filter((c) => c !== opt)
                                 : [...current, opt];
-                              onUpdateCustomField(def.id, next);
+                              handleCustomFieldUpdate(def.id, next);
                             }}
                           >
-                            <Checkbox checked={isChecked} />
+                            <Checkbox
+                              checked={isChecked}
+                              className="pointer-events-none"
+                            />
                             <span className="text-sm">{opt}</span>
                           </div>
                         );
@@ -417,95 +558,99 @@ export function TaskSheetProperties({
                   <Checkbox
                     checked={value === true || value === "true" || value === 1}
                     onCheckedChange={(checked) =>
-                      onUpdateCustomField(def.id, !!checked)
+                      handleCustomFieldUpdate(def.id, !!checked)
                     }
                   />
                 </div>
               ) : def.type === "files" ? (
                 <div className="flex flex-col gap-1 w-full p-1">
                   <div className="flex flex-wrap gap-1.5">
-                    {((value as CustomFieldFile[]) || []).map((file, i) => {
-                      const fileUrl =
-                        typeof file === "string" ? file : file.url;
-                      const fileName =
-                        typeof file === "string"
-                          ? (file as string).split("/").pop()
-                          : file.name;
-                      const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(
-                        fileUrl
-                      );
-                      const isPdf = /\.pdf$/i.test(fileUrl);
-                      const isWord = /\.(doc|docx)$/i.test(fileUrl);
-                      const isExcel = /\.(xls|xlsx|csv)$/i.test(fileUrl);
-                      const isPpt = /\.(ppt|pptx)$/i.test(fileUrl);
-                      const isZip = /\.(zip|rar|7z)$/i.test(fileUrl);
+                    {((value as (string | CustomFieldFile)[]) || []).map(
+                      (file, i) => {
+                        const fileUrl =
+                          typeof file === "string" ? file : file?.url || "";
+                        const fileName =
+                          typeof file === "string"
+                            ? file.split("/").pop()
+                            : file?.name || "File";
+                        const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(
+                          fileUrl,
+                        );
+                        const isPdf = /\.pdf$/i.test(fileUrl);
+                        const isWord = /\.(doc|docx)$/i.test(fileUrl);
+                        const isExcel = /\.(xls|xlsx|csv)$/i.test(fileUrl);
+                        const isPpt = /\.(ppt|pptx)$/i.test(fileUrl);
+                        const isZip = /\.(zip|rar|7z)$/i.test(fileUrl);
 
-                      return (
-                        <div
-                          key={i}
-                          className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-md border text-[10px] group/file relative cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isImage) {
-                              setPreviewFile({
-                                url: fileUrl,
-                                name: fileName || "File",
-                                type: "image",
-                              });
-                            } else {
-                              window.open(fileUrl, "_blank");
-                            }
-                          }}
-                        >
-                          {isImage ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={fileUrl}
-                              alt={fileName}
-                              className="h-4 w-4 object-cover rounded-sm"
-                            />
-                          ) : isPdf ? (
-                            <span className="text-[8px] font-bold text-red-500">
-                              PDF
-                            </span>
-                          ) : isWord ? (
-                            <span className="text-[8px] font-bold text-blue-500">
-                              DOC
-                            </span>
-                          ) : isExcel ? (
-                            <span className="text-[8px] font-bold text-green-500">
-                              XLS
-                            </span>
-                          ) : isPpt ? (
-                            <span className="text-[8px] font-bold text-orange-500">
-                              PPT
-                            </span>
-                          ) : isZip ? (
-                            <span className="text-[8px] font-bold text-yellow-500">
-                              ZIP
-                            </span>
-                          ) : (
-                            <FileIcon className="h-3 w-3 text-slate-500" />
-                          )}
-                          <span className="truncate max-w-[100px]">
-                            {fileName}
-                          </span>
-                          <button
+                        return (
+                          <div
+                            key={i}
+                            className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-md border text-[10px] group/file relative cursor-pointer hover:bg-muted/80 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onRemoveFile(def.id, i);
+                              if (isImage) {
+                                setPreviewFile({
+                                  url: fileUrl,
+                                  name: fileName || "File",
+                                  type: "image",
+                                });
+                              } else {
+                                window.open(fileUrl, "_blank");
+                              }
                             }}
-                            className="opacity-0 group-hover/file:opacity-100 hover:text-destructive transition-opacity"
                           >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      );
-                    })}
+                            {isImage ? (
+                              <Image
+                                src={fileUrl}
+                                alt={fileName || "File"}
+                                width={16}
+                                height={16}
+                                className="h-4 w-4 object-cover rounded-sm"
+                                unoptimized
+                              />
+                            ) : isPdf ? (
+                              <span className="text-[8px] font-bold text-red-500">
+                                PDF
+                              </span>
+                            ) : isWord ? (
+                              <span className="text-[8px] font-bold text-blue-500">
+                                DOC
+                              </span>
+                            ) : isExcel ? (
+                              <span className="text-[8px] font-bold text-green-500">
+                                XLS
+                              </span>
+                            ) : isPpt ? (
+                              <span className="text-[8px] font-bold text-orange-500">
+                                PPT
+                              </span>
+                            ) : isZip ? (
+                              <span className="text-[8px] font-bold text-yellow-500">
+                                ZIP
+                              </span>
+                            ) : (
+                              <FileIcon className="h-3 w-3 text-slate-500" />
+                            )}
+                            <span className="truncate max-w-[100px]">
+                              {fileName}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemoveFile(def.id, i);
+                              }}
+                              className="opacity-0 group-hover/file:opacity-100 hover:text-destructive transition-opacity ml-1"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      },
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-1.5 text-[10px] gap-1 border border-dashed"
+                      className="h-6 px-1.5 text-[10px] gap-1 border border-dashed hover:border-primary/50 hover:bg-primary/5"
                       onClick={() =>
                         document
                           .getElementById(`file-upload-${def.id}`)
@@ -536,7 +681,7 @@ export function TaskSheetProperties({
                   {[1, 2, 3, 4, 5].map((s) => (
                     <button
                       key={s}
-                      onClick={() => onUpdateCustomField(def.id, s)}
+                      onClick={() => handleCustomFieldUpdate(def.id, s)}
                       className="group/star"
                     >
                       <Star
@@ -544,7 +689,7 @@ export function TaskSheetProperties({
                           "h-4 w-4 transition-all",
                           s <= Number(value || 0)
                             ? "fill-yellow-400 text-yellow-400"
-                            : "text-muted-foreground/30 hover:text-yellow-400/50"
+                            : "text-muted-foreground/30 hover:text-yellow-400/50",
                         )}
                       />
                     </button>
@@ -559,7 +704,7 @@ export function TaskSheetProperties({
                     step="5"
                     value={Number(value || 0)}
                     onChange={(e) =>
-                      onUpdateCustomField(def.id, Number(e.target.value))
+                      handleCustomFieldUpdate(def.id, Number(e.target.value))
                     }
                     className="flex-1 h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary"
                   />
@@ -576,28 +721,24 @@ export function TaskSheetProperties({
                       ? value
                       : "-"
                     : value && isValid(new Date(String(value)))
-                    ? format(new Date(String(value)), "PPP HH:mm")
-                    : "-"}
+                      ? format(new Date(String(value)), "PPP HH:mm")
+                      : "-"}
                 </span>
               ) : (
-                <div className="flex items-center gap-2 w-full px-1">
-                  {def.type === "url" && (
-                    <LinkIcon className="h-3 w-3 text-muted-foreground" />
-                  )}
-                  {def.type === "email" && (
-                    <Mail className="h-3 w-3 text-muted-foreground" />
-                  )}
-                  {def.type === "phone" && (
-                    <Phone className="h-3 w-3 text-muted-foreground" />
-                  )}
-                  <Input
-                    value={String(value ?? "")}
-                    onChange={() => {}} // Controlled via onBlur
-                    onBlur={(e) => onUpdateCustomField(def.id, e.target.value)}
-                    className="h-7 border-none bg-transparent hover:bg-muted/10 focus-visible:ring-0 p-0 transition-colors text-sm shadow-none"
-                    placeholder="Empty"
-                  />
-                </div>
+                <PropertyInput
+                  value={String(value ?? "")}
+                  onUpdate={(val) => handleCustomFieldUpdate(def.id, val)}
+                  placeholder="Empty"
+                  icon={
+                    def.type === "url" ? (
+                      <LinkIcon className="h-3 w-3 text-muted-foreground" />
+                    ) : def.type === "email" ? (
+                      <Mail className="h-3 w-3 text-muted-foreground" />
+                    ) : def.type === "phone" ? (
+                      <Phone className="h-3 w-3 text-muted-foreground" />
+                    ) : null
+                  }
+                />
               )}
             </div>
           </div>
@@ -646,11 +787,13 @@ export function TaskSheetProperties({
           </DialogTitle>
           <div className="relative flex flex-col items-center justify-center w-full h-full">
             {previewFile?.type === "image" && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={previewFile.url}
                 alt={previewFile.name}
+                width={1200}
+                height={800}
                 className="max-h-[85vh] w-auto object-contain rounded-md shadow-2xl"
+                unoptimized
               />
             )}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-white/90">

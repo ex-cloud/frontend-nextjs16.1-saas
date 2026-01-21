@@ -61,7 +61,7 @@ export function KanbanTask({ task, isOverlay, onClick }: KanbanTaskProps) {
       className={cn(
         "cursor-grab active:cursor-grabbing border-sidebar-border/40 hover:border-sidebar-primary/40 hover:shadow-md transition-all group/task bg-card select-none",
         isDragging && "opacity-20",
-        isOverlay && "shadow-xl border-sidebar-primary/50 rotate-3"
+        isOverlay && "shadow-xl border-sidebar-primary/50 rotate-3",
       )}
     >
       <CardContent className="p-3 space-y-3">
@@ -74,7 +74,7 @@ export function KanbanTask({ task, isOverlay, onClick }: KanbanTaskProps) {
             variant="outline"
             className={cn(
               "text-[10px] h-4.5 px-1.5 font-semibold",
-              priorityColors[task.priority]
+              priorityColors[task.priority],
             )}
           >
             {priorityLabel}
@@ -107,8 +107,33 @@ export function KanbanTask({ task, isOverlay, onClick }: KanbanTaskProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {task.assignee ? (
+          <div className="flex items-center -space-x-1.5 overflow-hidden">
+            {task.assignees && task.assignees.length > 0 ? (
+              <>
+                {task.assignees.slice(0, 3).map((a) => (
+                  <Avatar
+                    key={a.id}
+                    className="h-5 w-5 border border-background"
+                  >
+                    <AvatarImage
+                      src={
+                        a.avatar_url || `https://avatar.vercel.sh/${a.id}.png`
+                      }
+                    />
+                    <AvatarFallback className="text-[8px]">
+                      {a.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {task.assignees.length > 3 && (
+                  <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center border border-background z-10">
+                    <span className="text-[8px] font-bold text-muted-foreground">
+                      +{task.assignees.length - 3}
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : task.assignee ? (
               <Avatar className="h-5 w-5 border border-background">
                 <AvatarImage
                   src={

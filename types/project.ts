@@ -108,6 +108,7 @@ export interface Task {
   story_points?: number;
   tags?: string[];
   custom_values?: Record<string, unknown>;
+  assignee_ids?: (string | number)[];
 
   // UI Helper fields (optional)
   listName?: string;
@@ -115,6 +116,7 @@ export interface Task {
 
   // Relationships
   assignee?: User;
+  assignees?: User[];
   reporter?: User;
   subtasks?: Task[];
   blockers?: TaskDependency[];

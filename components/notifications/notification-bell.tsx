@@ -4,6 +4,12 @@ import { Bell } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import React from "react";
+import Echo from "laravel-echo";
+
+import { createEcho } from "@/lib/echo";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,13 +28,75 @@ import {
   useNotifications,
   useUnreadNotificationCount,
   useMarkAsRead,
+  notificationKeys,
 } from "@/lib/hooks/use-notifications";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function NotificationBell() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const { data: unreadCount } = useUnreadNotificationCount();
   const { data: notifications } = useNotifications({ per_page: 5 });
   const markAsRead = useMarkAsRead();
+
+  // Real-time synchronization
+  React.useEffect(() => {
+    if (!session?.user?.id) return;
+
+    let echoInstance: Echo<"pusher"> | null = null;
+    const channelName = `App.Models.User.${session.user.id}`;
+
+    const setupRealtime = async () => {
+      const echo = await createEcho();
+      if (!echo) return;
+      echoInstance = echo;
+
+      const channel = echo.private(channelName);
+
+      interface NotificationPayload {
+        title?: string;
+        message?: string;
+        action_url?: string;
+        icon?: string;
+      }
+
+      const handleNotification = (notification: NotificationPayload) => {
+        console.log(
+          "[NotificationBell] New notification received:",
+          notification,
+        );
+
+        // Invalidate queries to refresh UI
+        queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+
+        // Show toast
+        const actionUrl = notification.action_url;
+        toast.info(notification.title || "New Notification", {
+          description: notification.message || "",
+          action: actionUrl
+            ? {
+                label: "View",
+                onClick: () => {
+                  if (actionUrl) router.push(actionUrl);
+                },
+              }
+            : undefined,
+        });
+      };
+
+      // Laravel broadcasts specific internal events for notifications
+      channel.notification(handleNotification);
+    };
+
+    setupRealtime();
+
+    return () => {
+      if (echoInstance) {
+        echoInstance.leave(channelName);
+      }
+    };
+  }, [session?.user?.id, queryClient, router]);
 
   const handleNotificationClick = async (id: string, actionUrl?: string) => {
     await markAsRead.mutateAsync(id);
@@ -69,12 +137,12 @@ export function NotificationBell() {
                   key={notification.id}
                   className={cn(
                     "flex flex-col items-start gap-1 p-3 cursor-pointer",
-                    !notification.read_at && "bg-primary/5"
+                    !notification.read_at && "bg-primary/5",
                   )}
                   onClick={() =>
                     handleNotificationClick(
                       notification.id,
-                      notification.data?.action_url
+                      notification.data?.action_url,
                     )
                   }
                 >
@@ -82,7 +150,7 @@ export function NotificationBell() {
                     <span
                       className={cn(
                         "font-medium text-sm",
-                        !notification.read_at && "text-primary"
+                        !notification.read_at && "text-primary",
                       )}
                     >
                       {notification.data?.title || "Notification"}
