@@ -18,7 +18,9 @@ export function TaskSheetTitle({ task, onUpdate }: TaskSheetTitleProps) {
   }, [task.title]);
 
   const handleSave = () => {
-    onUpdate("title", editedValue);
+    if (editedValue.trim() !== task.title) {
+      onUpdate("title", editedValue);
+    }
     setIsEditing(false);
   };
 

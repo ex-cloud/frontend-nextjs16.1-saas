@@ -146,6 +146,25 @@ export function TaskSheetProperties({
     setLocalCustomValues(task.custom_values || {});
   }, [task.custom_values]);
 
+  // Responsive state for assignees to avoid persistence lag
+  const initialAssignees =
+    task.assignees && task.assignees.length > 0
+      ? task.assignees
+      : task.assignee
+        ? [task.assignee]
+        : [];
+  const [localAssignees, setLocalAssignees] = React.useState(initialAssignees);
+
+  React.useEffect(() => {
+    const next =
+      task.assignees && task.assignees.length > 0
+        ? task.assignees
+        : task.assignee
+          ? [task.assignee]
+          : [];
+    setLocalAssignees(next);
+  }, [task.assignees, task.assignee]);
+
   const handleCustomFieldUpdate = (
     fieldId: string | number,
     value: unknown,
@@ -212,8 +231,8 @@ export function TaskSheetProperties({
           <Popover>
             <PopoverTrigger asChild>
               <div className="flex flex-wrap gap-1 items-center py-1 cursor-pointer w-full min-h-[28px]">
-                {task.assignees && task.assignees.length > 0 ? (
-                  task.assignees.map((a) => (
+                {localAssignees.length > 0 ? (
+                  localAssignees.map((a) => (
                     <Badge
                       key={a.id}
                       variant="secondary"
@@ -224,10 +243,14 @@ export function TaskSheetProperties({
                         className="h-3 w-3 hover:text-destructive transition-colors cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
-                          const nextIds = task.assignees
-                            ?.filter((u) => u.id !== a.id)
-                            .map((u) => u.id);
-                          onUpdate("assignee_ids", nextIds);
+                          const nextAssignees = localAssignees.filter(
+                            (u) => u.id !== a.id,
+                          );
+                          setLocalAssignees(nextAssignees);
+                          onUpdate(
+                            "assignee_ids",
+                            nextAssignees.map((u) => u.id),
+                          );
                         }}
                       />
                     </Badge>
@@ -246,18 +269,30 @@ export function TaskSheetProperties({
                 </div>
                 {projectMembers.map((m) => {
                   const uId = m.user?.id || m.id;
-                  const isAssigned = task.assignees?.some((u) => u.id === uId);
+                  const isAssigned = localAssignees.some((u) => u.id === uId);
+
                   return (
                     <div
                       key={m.id}
                       className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 rounded cursor-pointer transition-colors"
                       onClick={() => {
-                        const currentIds =
-                          task.assignees?.map((u) => u.id) || [];
-                        const nextIds = isAssigned
-                          ? currentIds.filter((id) => id !== uId)
-                          : [...currentIds, uId];
-                        onUpdate("assignee_ids", nextIds);
+                        let nextAssignees;
+                        if (isAssigned) {
+                          nextAssignees = localAssignees.filter(
+                            (u) => u.id !== uId,
+                          );
+                        } else {
+                          // Correctly type the fallback to User
+                          const userObj =
+                            m.user ||
+                            (m as unknown as import("@/types/user").User);
+                          nextAssignees = [...localAssignees, userObj];
+                        }
+                        setLocalAssignees(nextAssignees);
+                        onUpdate(
+                          "assignee_ids",
+                          nextAssignees.map((u) => u.id),
+                        );
                       }}
                     >
                       <Checkbox
