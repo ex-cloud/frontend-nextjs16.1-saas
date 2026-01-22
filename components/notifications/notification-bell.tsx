@@ -70,6 +70,9 @@ export function NotificationBell() {
         // Invalidate queries to refresh UI
         queryClient.invalidateQueries({ queryKey: notificationKeys.all });
 
+        // Trigger custom event for other components to refresh
+        window.dispatchEvent(new CustomEvent("app:refresh-kanban"));
+
         // Show toast
         const actionUrl = notification.action_url;
         toast.info(notification.title || "New Notification", {

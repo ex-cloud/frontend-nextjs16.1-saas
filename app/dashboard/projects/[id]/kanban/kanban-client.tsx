@@ -49,6 +49,19 @@ export function KanbanClient({ projectId }: KanbanClientProps) {
     refetchProject();
   }, [refetchLists, refetchProject]);
 
+  // Real-time synchronization listener
+  React.useEffect(() => {
+    const handleRefreshEvent = () => {
+      console.log("[KanbanClient] Refreshing board due to custom event");
+      handleRefresh();
+    };
+
+    window.addEventListener("app:refresh-kanban", handleRefreshEvent);
+    return () => {
+      window.removeEventListener("app:refresh-kanban", handleRefreshEvent);
+    };
+  }, [handleRefresh]);
+
   const handleAddCustomField = async (type: CustomFieldType) => {
     if (!project) return;
     try {

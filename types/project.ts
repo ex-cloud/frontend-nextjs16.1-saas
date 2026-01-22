@@ -109,6 +109,7 @@ export interface Task {
   tags?: string[];
   custom_values?: Record<string, unknown>;
   assignee_ids?: (string | number)[];
+  is_unread?: boolean;
 
   // UI Helper fields (optional)
   listName?: string;

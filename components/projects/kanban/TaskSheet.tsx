@@ -42,7 +42,7 @@ export function TaskSheet({
   const [isTimerRunning, setIsTimerRunning] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [projectMembers, setProjectMembers] = React.useState<ProjectMember[]>(
-    []
+    [],
   );
   const [isCompleting, setIsCompleting] = React.useState(false);
   const [isTogglingTimer, setIsTogglingTimer] = React.useState(false);
@@ -62,7 +62,7 @@ export function TaskSheet({
     if (task?.project_id) {
       try {
         const members = await projectService.getProjectMembers(
-          String(task.project_id)
+          String(task.project_id),
         );
         setProjectMembers(members);
       } catch (error) {
@@ -94,8 +94,26 @@ export function TaskSheet({
       fetchComments();
       fetchMembers();
       checkRunningTimer();
+
+      // Mark task as read if it's currently unread
+      if (task.is_unread) {
+        taskService
+          .markTaskAsRead(task.id)
+          .then(() => {
+            if (onRefresh) onRefresh();
+          })
+          .catch((err) => console.error("Failed to mark task as read:", err));
+      }
     }
-  }, [open, task?.id, fetchComments, fetchMembers, checkRunningTimer]);
+  }, [
+    open,
+    task?.id,
+    task?.is_unread,
+    fetchComments,
+    fetchMembers,
+    checkRunningTimer,
+    onRefresh,
+  ]);
 
   if (!task) return null;
 
@@ -147,7 +165,7 @@ export function TaskSheet({
 
   const handleUpdateCustomField = async (
     fieldId: string | number,
-    value: unknown
+    value: unknown,
   ) => {
     if (!task) return;
     try {

@@ -62,14 +62,29 @@ export function KanbanTask({ task, isOverlay, onClick }: KanbanTaskProps) {
         "cursor-grab active:cursor-grabbing border-sidebar-border/40 hover:border-sidebar-primary/40 hover:shadow-md transition-all group/task bg-card select-none",
         isDragging && "opacity-20",
         isOverlay && "shadow-xl border-sidebar-primary/50 rotate-3",
+        task.is_unread &&
+          "border-sky-400/50 shadow-[0_0_15px_-5px_rgba(56,189,248,0.3)] bg-sky-50/30 dark:bg-sky-950/10",
       )}
     >
       <CardContent className="p-3 space-y-3">
         {/* Task Header */}
         <div className="flex items-start justify-between gap-2">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-muted/50 px-1.5 py-0.5 rounded">
-            {task.task_number}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-muted/50 px-1.5 py-0.5 rounded">
+              {task.task_number}
+            </span>
+            {task.is_unread && (
+              <div className="flex items-center gap-1.5 animate-in fade-in zoom-in duration-500">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+                </span>
+                <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-tighter">
+                  New
+                </span>
+              </div>
+            )}
+          </div>
           <Badge
             variant="outline"
             className={cn(

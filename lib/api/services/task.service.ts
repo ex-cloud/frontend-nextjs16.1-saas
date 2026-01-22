@@ -72,6 +72,10 @@ export const taskService = {
     return response.data.data;
   },
 
+  markTaskAsRead: async (taskId: string | number): Promise<void> => {
+    await api.post(`/notifications/mark-task-as-read/${taskId}`);
+  },
+
   // Dependencies
   getTaskDependencies: async (
     taskId: string | number,
