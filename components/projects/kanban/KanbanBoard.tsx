@@ -87,7 +87,7 @@ export function KanbanBoard({
       const channel = echo.private(channelName);
 
       channel.listen(".task.moved", (e: { task: Task }) => {
-        console.log("[KanbanBoard] Task moved event received:", e);
+        // console.log("[KanbanBoard] Task moved event received:", e); // Dihilangkan agar log clean
         if (onRefresh) onRefresh();
 
         // Update selected task in modal if it's the one that moved
@@ -102,7 +102,7 @@ export function KanbanBoard({
       channel.listen(
         ".task.deleted",
         (e: { projectId: number | string; taskId: number | string }) => {
-          console.log("[KanbanBoard] Task deleted event received:", e);
+          // console.log("[KanbanBoard] Task deleted event received:", e); // Dihilangkan agar log clean
           if (onRefresh) onRefresh();
 
           // Close modal if the open task was deleted
