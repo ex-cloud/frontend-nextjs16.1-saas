@@ -20,6 +20,7 @@ import { TaskSheetTitle } from "./task-sheet/TaskSheetTitle";
 import { TaskSheetProperties } from "./task-sheet/TaskSheetProperties";
 import { TaskSheetDescription } from "./task-sheet/TaskSheetDescription";
 import { TaskSheetComments } from "./task-sheet/TaskSheetComments";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface TaskSheetProps {
   task: Task | null;
@@ -52,8 +53,8 @@ export function TaskSheet({
       try {
         const data = await taskService.getTaskComments(task.id);
         setComments(data);
-      } catch (error) {
-        console.error("Failed to fetch comments:", error);
+      } catch {
+        // Hapus semua console.error agar log browser clean
       }
     }
   }, [task?.id]);
@@ -65,8 +66,8 @@ export function TaskSheet({
           String(task.project_id),
         );
         setProjectMembers(members);
-      } catch (error) {
-        console.error("Failed to fetch project members:", error);
+      } catch {
+        // Hapus semua console.error agar log browser clean
       }
     }
   }, [task?.project_id]);
@@ -102,7 +103,9 @@ export function TaskSheet({
           .then(() => {
             if (onRefresh) onRefresh();
           })
-          .catch((err) => console.error("Failed to mark task as read:", err));
+          .catch((err) => {
+            // Hapus semua console.error agar log browser clean
+          });
       }
     }
   }, [
@@ -143,7 +146,6 @@ export function TaskSheet({
       if (onRefresh) onRefresh();
       onOpenChange(false);
     } catch (error: unknown) {
-      console.error("Failed to complete task:", error);
       toast.error("Failed to complete task");
     } finally {
       setIsCompleting(false);
@@ -179,7 +181,6 @@ export function TaskSheet({
       toast.success("Property updated");
       if (onRefresh) onRefresh();
     } catch (error) {
-      console.error("Failed to update custom field:", error);
       toast.error("Failed to update property");
     }
   };
@@ -209,14 +210,20 @@ export function TaskSheet({
     await handleUpdateCustomField(defId, newFiles);
   };
 
+  const canDelete = task?.permissions?.delete === true;
+
   const handleDelete = async () => {
     try {
       await taskService.deleteTask(task.id);
       toast.success("Task deleted");
       if (onRefresh) onRefresh();
       onOpenChange(false);
-    } catch {
-      toast.error("Delete failed");
+    } catch (error: any) {
+      if (error?.response?.status === 403) {
+        toast.error("Anda tidak diizinkan menghapus task ini");
+      } else {
+        toast.error("Gagal menghapus task");
+      }
     }
   };
 
@@ -234,6 +241,7 @@ export function TaskSheet({
               onToggleTimer={handleToggleTimer}
               onComplete={handleComplete}
               onDelete={handleDelete}
+              canDelete={canDelete}
             />
 
             {/* Main Content Area */}

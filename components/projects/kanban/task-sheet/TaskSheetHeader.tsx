@@ -18,6 +18,7 @@ import {
 import { Clock, Play, CheckCircle2, Trash2, Loader2 } from "lucide-react";
 import { Task } from "@/types/project";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TaskSheetHeaderProps {
   task: Task;
@@ -27,6 +28,7 @@ interface TaskSheetHeaderProps {
   onToggleTimer: () => void;
   onComplete: () => void;
   onDelete: () => void;
+  canDelete: boolean;
 }
 
 export function TaskSheetHeader({
@@ -37,6 +39,7 @@ export function TaskSheetHeader({
   onToggleTimer,
   onComplete,
   onDelete,
+  canDelete,
 }: TaskSheetHeaderProps) {
   return (
     <div className="flex items-center justify-between px-8 py-4 border-b/50">
@@ -91,13 +94,34 @@ export function TaskSheetHeader({
         <Separator orientation="vertical" className="h-4" />
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {canDelete ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground opacity-60 cursor-not-allowed"
+                      disabled
+                      tabIndex={-1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent sideOffset={8}>
+                  Anda tidak diizinkan menghapus task ini
+                </TooltipContent>
+              </Tooltip>
+            )}
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>

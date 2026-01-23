@@ -123,6 +123,13 @@ export interface Task {
   blockers?: TaskDependency[];
   blocking?: TaskDependency[];
 
+  // Permissions (opsional, untuk UI logic)
+  permissions?: {
+    delete?: boolean;
+    edit?: boolean;
+    [key: string]: boolean | undefined;
+  };
+
   created_at: string;
   updated_at: string;
 }

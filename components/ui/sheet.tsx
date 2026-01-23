@@ -52,11 +52,30 @@ function SheetContent({
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
 }) {
+  // Cari SheetDescription di children
+  const descriptionChild = React.Children.toArray(children).find(
+    (child: any) => child?.type?.displayName === "SheetDescription"
+  ) as React.ReactElement | undefined;
+  const descriptionId = (descriptionChild as any)?.props?.id
+    ? (descriptionChild as any).props.id
+    : (descriptionChild ? "sheet-description-auto" : undefined);
+  // Jika ada SheetDescription, tambahkan id padanya
+  const childrenWithId = React.Children.map(children, (child: any) => {
+    if (
+      descriptionChild &&
+      child?.type?.displayName === "SheetDescription" &&
+      !child?.props?.id
+    ) {
+      return React.cloneElement(child, { id: descriptionId });
+    }
+    return child;
+  });
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
+        aria-describedby={descriptionId}
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
           side === "right" &&
@@ -71,15 +90,16 @@ function SheetContent({
         )}
         {...props}
       >
-        {children}
+        {childrenWithId}
         <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
     </SheetPortal>
-  )
+  );
 }
+SheetContent.displayName = "SheetContent";
 
 function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -124,8 +144,9 @@ function SheetDescription({
       className={cn("text-muted-foreground text-sm", className)}
       {...props}
     />
-  )
+  );
 }
+SheetDescription.displayName = "SheetDescription";
 
 export {
   Sheet,
