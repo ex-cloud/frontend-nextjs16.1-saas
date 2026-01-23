@@ -73,24 +73,35 @@ export function EffectivePermissionsCard({
       const normalizedAction = normalizeAction(action);
       if (!normalizedAction) return;
 
-      if (!moduleMap.has(moduleName)) {
-        moduleMap.set(moduleName, new Map());
+      const normalizedModuleName = moduleName.replace(/s$/, "");
+
+      if (!moduleMap.has(normalizedModuleName)) {
+        moduleMap.set(normalizedModuleName, new Map());
       }
 
-      const documentMap = moduleMap.get(moduleName)!;
+      const documentMap = moduleMap.get(normalizedModuleName)!;
 
-      if (!documentMap.has(moduleName)) {
-        documentMap.set(moduleName, new Set());
+      if (!documentMap.has(normalizedModuleName)) {
+        documentMap.set(normalizedModuleName, new Set());
       }
-      documentMap.get(moduleName)!.add(normalizedAction);
+
+      // If action is 'manage', it grants multiple permissions in the UI
+      if (action.toLowerCase() === "manage") {
+        documentMap.get(normalizedModuleName)!.add("read");
+        documentMap.get(normalizedModuleName)!.add("write");
+        documentMap.get(normalizedModuleName)!.add("create");
+        documentMap.get(normalizedModuleName)!.add("delete");
+      } else {
+        documentMap.get(normalizedModuleName)!.add(normalizedAction);
+      }
     });
 
     // Convert to array format
     const result: ModulePermissionData[] = [];
-    moduleMap.forEach((documents, moduleName) => {
+    moduleMap.forEach((documents, normalizedModuleName) => {
       const moduleData: ModulePermissionData = {
-        moduleName,
-        displayName: formatDisplayName(moduleName),
+        moduleName: normalizedModuleName,
+        displayName: formatDisplayName(normalizedModuleName),
         documents: [],
       };
 
@@ -134,7 +145,7 @@ export function EffectivePermissionsCard({
         const foundModule = result.find(
           (m) =>
             m.moduleName === key ||
-            m.moduleName.replace(/s$/, "") === key.replace(/s$/, "")
+            m.moduleName.replace(/s$/, "") === key.replace(/s$/, ""),
         );
         if (foundModule && !processedModules.has(foundModule.moduleName)) {
           groupModules.push(foundModule);
@@ -146,7 +157,7 @@ export function EffectivePermissionsCard({
         groups.push({
           groupName,
           modules: groupModules.sort((a, b) =>
-            a.displayName.localeCompare(b.displayName)
+            a.displayName.localeCompare(b.displayName),
           ),
         });
       }
@@ -154,13 +165,13 @@ export function EffectivePermissionsCard({
 
     // Handle "Other" modules (not in any defined group)
     const otherModules = result.filter(
-      (m) => !processedModules.has(m.moduleName)
+      (m) => !processedModules.has(m.moduleName),
     );
     if (otherModules.length > 0) {
       groups.push({
         groupName: "Others",
         modules: otherModules.sort((a, b) =>
-          a.displayName.localeCompare(b.displayName)
+          a.displayName.localeCompare(b.displayName),
         ),
       });
     }
@@ -217,7 +228,7 @@ export function EffectivePermissionsCard({
           {groupedPermissions.map((group) => {
             // Aggregate all documents from all modules in this group
             const aggregatedDocuments = group.modules.flatMap(
-              (m) => m.documents
+              (m) => m.documents,
             );
 
             return (
@@ -262,6 +273,7 @@ function normalizeAction(action: string): PermissionAction | null {
     report: "report",
     export: "export",
     download: "export",
+    manage: "write",
   };
   return actionMap[action.toLowerCase()] || null;
 }

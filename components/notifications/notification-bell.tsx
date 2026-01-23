@@ -48,8 +48,9 @@ export function NotificationBell() {
     const channelName = `App.Models.User.${session.user.id}`;
 
     const setupRealtime = async () => {
+      let active = true;
       const echo = await createEcho();
-      if (!echo) return;
+      if (!echo || !active) return;
       echoInstance = echo;
 
       const channel = echo.private(channelName);
@@ -62,6 +63,7 @@ export function NotificationBell() {
       }
 
       const handleNotification = (notification: NotificationPayload) => {
+        if (!active) return;
         console.log(
           "[NotificationBell] New notification received:",
           notification,
@@ -90,14 +92,19 @@ export function NotificationBell() {
 
       // Laravel broadcasts specific internal events for notifications
       channel.notification(handleNotification);
+
+      return () => {
+        active = false;
+      };
     };
 
-    setupRealtime();
+    const cleanup = setupRealtime();
 
     return () => {
       if (echoInstance) {
         echoInstance.leave(channelName);
       }
+      cleanup.then((fn) => fn && fn());
     };
   }, [session?.user?.id, queryClient, router]);
 
