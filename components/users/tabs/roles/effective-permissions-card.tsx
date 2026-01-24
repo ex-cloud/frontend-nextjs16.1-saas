@@ -274,6 +274,9 @@ function normalizeAction(action: string): PermissionAction | null {
     export: "export",
     download: "export",
     manage: "write",
+    assign: "submit",
+    move: "write",
+    restore: "write",
   };
   return actionMap[action.toLowerCase()] || null;
 }

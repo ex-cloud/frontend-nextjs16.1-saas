@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { UnifiedCommandPalette } from "@/components/UnifiedCommandPalette";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
           <Providers>
             {children}
             <Toaster position="top-right" richColors />
+            <UnifiedCommandPalette />
           </Providers>
         </ErrorBoundary>
       </body>

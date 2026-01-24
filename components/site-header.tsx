@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { SearchButton } from "@/components/search-button";
 
 export function SiteHeader() {
   return (
@@ -14,6 +15,7 @@ export function SiteHeader() {
         />
         <h1 className="text-base font-medium">Documents</h1>
         <div className="ml-auto flex items-center gap-2">
+          <SearchButton />
           <NotificationBell />
           <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
             <a
