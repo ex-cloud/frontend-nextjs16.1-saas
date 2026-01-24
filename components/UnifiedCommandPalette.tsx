@@ -80,8 +80,8 @@ const typeLabels: Record<string, string> = {
 const typeUrls: Record<string, string> = {
   users: "/dashboard/users",
   projects: "/dashboard/projects",
-  teams: "/settings/teams",
-  departments: "/settings/departments",
+  teams: "/dashboard/hrm/teams",
+  departments: "/dashboard/hrm/departments",
   network_assets: "/infrastructure/assets",
 };
 
