@@ -14,6 +14,9 @@ import {
   Briefcase,
   Users as UsersGroup,
   FolderKanban,
+  Network,
+  Map,
+  Box,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import NextImage from "next/image";
@@ -131,6 +134,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     },
   ].filter((item) => hasRole(item.roles));
 
+  // Infrastructure Section
+  const infraSection = [
+    {
+      title: "Infrastructure",
+      url: "#",
+      icon: Network,
+      roles: ["Super Admin", "Admin", "Network Engineer"],
+      items: [
+        {
+          title: "Assets Inventory",
+          url: "/dashboard/infrastructure/assets",
+          icon: Box,
+        },
+        {
+          title: "GIS Topology",
+          url: "/dashboard/infrastructure/gis",
+          icon: Map,
+        },
+        {
+          title: "Network Standards",
+          url: "/dashboard/infrastructure/settings",
+          icon: Settings,
+        },
+      ],
+    },
+  ].filter((item) => hasRole(item.roles));
+
   const navSecondary = [
     {
       title: "Settings",
@@ -149,6 +179,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     ...navMain,
     ...userManagement,
     ...hrmSection,
+    ...infraSection,
     ...contentSection,
   ];
 
@@ -201,7 +232,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar
+      collapsible="offcanvas"
+      className="bg-sidebar/80 backdrop-blur-md"
+      {...props}
+    >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

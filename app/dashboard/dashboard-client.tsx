@@ -5,12 +5,19 @@
  *
  * Client-side interactive wrapper for dashboard
  * Receives real data from server component as props
+ * Features: Customizable grid layout with drag-and-drop
  */
 
 import { LazyChartAreaInteractive } from "@/lib/lazy-components";
 import { DashboardStats } from "./actions";
 import { UserMetricsChart } from "@/components/user-metrics-chart";
 import { UserRolesChart } from "@/components/user-roles-chart";
+
+import { GlassCard } from "@/components/ui/glass";
+import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
+import { CalendarWidget } from "@/components/dashboard/widgets/calendar-widget";
+import { LiveFeedWidget } from "@/components/dashboard/widgets/live-feed-widget";
+import { QuickLinksWidget } from "@/components/dashboard/widgets/quick-links-widget";
 
 interface DashboardClientProps {
   data: DashboardStats;
@@ -24,7 +31,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
     {
       title: "Total Users",
       value: userStats.total_users.toString(),
-      change: "+0%", // Can calculate from historical data
+      change: "+0%",
       changeType: "positive" as const,
       icon: "users",
     },
@@ -32,7 +39,7 @@ export function DashboardClient({ data }: DashboardClientProps) {
       title: "Active Users",
       value: userStats.active_users.toString(),
       change: `${Math.round(
-        (userStats.active_users / userStats.total_users) * 100
+        (userStats.active_users / userStats.total_users) * 100,
       )}%`,
       changeType: "positive" as const,
       icon: "userCheck",
@@ -54,15 +61,14 @@ export function DashboardClient({ data }: DashboardClientProps) {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+    <DashboardGrid>
+      {/* 1. Stats Grid */}
+      <div
+        key="stats"
+        className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4 h-full"
+      >
         {cardData.map((card, index) => (
-          <div
-            key={index}
-            className="rounded-lg border bg-card p-4 glass-card fade-in-up shadow-sm hover:shadow-md transition-all duration-300"
-            style={{ animationDelay: `${index * 0.1}s` }}
-          >
+          <GlassCard key={index} intensity="medium" hoverEffect className="p-4">
             <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               {card.title}
             </p>
@@ -78,54 +84,44 @@ export function DashboardClient({ data }: DashboardClientProps) {
             >
               {card.change}
             </p>
-          </div>
+          </GlassCard>
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <div className="col-span-4">
-          <LazyChartAreaInteractive data={chartData} />
-        </div>
-
-        <div className="col-span-3">
-          <div
-            className="rounded-lg border bg-card p-4 glass-card fade-in-up h-full"
-            style={{ animationDelay: "0.4s" }}
-          >
-            <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-            {recentActivities.length > 0 ? (
-              <div className="space-y-3">
-                {recentActivities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="border-b last:border-0 pb-2 last:pb-0"
-                  >
-                    <p className="font-medium text-sm">
-                      {activity.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {activity.causer?.name || "System"} · {activity.log_name}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No recent activity
-              </p>
-            )}
-          </div>
-        </div>
+      {/* 2. Quick Links */}
+      <div key="quick-links" className="h-full">
+        <QuickLinksWidget />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <UserMetricsChart stats={userStats} />
-        <UserRolesChart data={userStats.users_by_role} />
+      {/* 3. Main Chart */}
+      <div key="main-chart" className="h-full">
+        <GlassCard className="p-0 overflow-hidden h-full" intensity="low">
+          <LazyChartAreaInteractive data={chartData} />
+        </GlassCard>
+      </div>
 
-        <div
-          className="rounded-lg border bg-card p-4 glass-card fade-in-up"
-          style={{ animationDelay: "0.6s" }}
-        >
+      {/* 4. Calendar */}
+      <div key="calendar" className="h-full">
+        <CalendarWidget />
+      </div>
+
+      {/* 5. Live Feed (Replacing old 'activity') */}
+      <div key="live-feed" className="h-full">
+        <LiveFeedWidget initialActivities={recentActivities} />
+      </div>
+
+      {/* 6. Bottom Charts */}
+      <div key="user-metrics" className="h-full">
+        <UserMetricsChart stats={userStats} />
+      </div>
+
+      <div key="role-distribution" className="h-full">
+        <UserRolesChart data={userStats.users_by_role} />
+      </div>
+
+      {/* 7. HRM Overview */}
+      <div key="hrm-overview" className="h-full">
+        <GlassCard className="p-4 h-full" intensity="medium">
           <h3 className="text-lg font-semibold mb-4">HRM Overview</h3>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -151,8 +147,8 @@ export function DashboardClient({ data }: DashboardClientProps) {
               <span className="font-medium">{hrmStats.total_teams}</span>
             </div>
           </div>
-        </div>
+        </GlassCard>
       </div>
-    </div>
+    </DashboardGrid>
   );
 }
