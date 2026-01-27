@@ -2,6 +2,7 @@ import Echo from "laravel-echo";
 import Pusher from "pusher-js";
 import { getAccessToken } from "@/lib/auth";
 import axios from "axios";
+import apiClient from "@/lib/api/client";
 
 // Define the auth data type expected by Pusher/Echo
 // Matches Pusher's ChannelAuthorizationData
@@ -49,8 +50,8 @@ export const createEcho = async () => {
             // because strict function signatures often forbid optionality if not explicitly defined like that.
             callback: (
               error: Error | null,
-              data: ChannelAuthData | null
-            ) => void
+              data: ChannelAuthData | null,
+            ) => void,
           ) => {
             axios
               .post(
@@ -66,7 +67,7 @@ export const createEcho = async () => {
                     Authorization: token ? `Bearer ${token}` : undefined,
                     "Content-Type": "application/json",
                   },
-                }
+                },
               )
               .then((response) => {
                 // Pass null for error, and response data for data
@@ -82,6 +83,17 @@ export const createEcho = async () => {
       },
     });
   }
+
+  // Bind connection event to update socket ID in axios headers
+  window.Echo.connector.pusher.connection.bind("connected", () => {
+    const socketId = window.Echo.socketId();
+    if (socketId) {
+      // Update global axios
+      axios.defaults.headers.common["X-Socket-ID"] = socketId;
+      // Update our specific apiClient headers
+      apiClient.defaults.headers.common["X-Socket-ID"] = socketId;
+    }
+  });
 
   return window.Echo;
 };

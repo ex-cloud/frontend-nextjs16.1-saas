@@ -68,6 +68,10 @@ const nextConfig: NextConfig = {
         source: "/laravel-storage/:path*",
         destination: `${apiUrl}/storage/:path*`,
       },
+      {
+        source: "/api/v1/:path*",
+        destination: `${apiUrl}/api/v1/:path*`,
+      },
     ];
   },
 
