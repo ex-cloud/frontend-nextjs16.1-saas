@@ -5,8 +5,12 @@ export type NodeType =
   | "CABINET"
   | "SPLITTER"
   | "SLACK_LOOP"
+<<<<<<< HEAD
   | "CUSTOMER"
   | "ISSUE";
+=======
+  | "CUSTOMER";
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 
 export interface INodeMetadata {
   height?: number;
@@ -98,6 +102,7 @@ export interface INetworkStandard {
   config_value: INetworkStandardValues;
   [key: string]: unknown;
 }
+<<<<<<< HEAD
 
 export interface ISpatialAnalysisResult {
   counts: {
@@ -108,3 +113,5 @@ export interface ISpatialAnalysisResult {
   suggestions: [number, number][];
   area_sqkm: number;
 }
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb

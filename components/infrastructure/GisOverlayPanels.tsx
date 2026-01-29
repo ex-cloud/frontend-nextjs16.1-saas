@@ -350,6 +350,7 @@ export function GisOverlayPanels({
                           .length
                       }
                     </span>
+<<<<<<< HEAD
                     <div className="flex items-center justify-between text-[10px]">
                       <div className="flex items-center gap-2">
                         <Switch
@@ -370,6 +371,8 @@ export function GisOverlayPanels({
                         }
                       </span>
                     </div>
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
                   </div>
                 </div>
                 <div className="pt-1.5 text-[9px] text-muted-foreground italic border-t border-sidebar-border/50 leading-tight">

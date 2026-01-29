@@ -1,13 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api/client";
+<<<<<<< HEAD
 import * as turf from "@turf/turf";
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 import { toast } from "sonner";
 import { createEcho } from "@/lib/echo";
 import {
   IGisNode,
   IGisLink,
   IAreaGroup,
+<<<<<<< HEAD
   NodeType,
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   INetworkStandard,
 } from "@/types/infrastructure";
 
@@ -18,6 +24,7 @@ interface GisUpdateEvent {
     | "node_deleted"
     | "link_created"
     | "link_updated"
+<<<<<<< HEAD
     | "link_deleted"
     | "bulk_nodes_created"
     | "bulk_links_created";
@@ -28,6 +35,10 @@ interface GisUpdateEvent {
     | IGisLink[]
     | { id: number }
     | { count: number };
+=======
+    | "link_deleted";
+  data: IGisNode | IGisLink | { id: number };
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   userId?: number | string;
 }
 
@@ -44,7 +55,10 @@ export function useGisTopology(currentUserId?: string | null) {
     Record<string, INetworkStandard[] | INetworkStandard>
   >({});
   const [loading, setLoading] = useState(false);
+<<<<<<< HEAD
   const [isSyncing, setIsSyncing] = useState(false); // Subtler loading state for area sync
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 
   const fetchData = useCallback(
     async (bounds?: {
@@ -54,6 +68,7 @@ export function useGisTopology(currentUserId?: string | null) {
       west: number;
     }) => {
       try {
+<<<<<<< HEAD
         // Initial load uses regular loading, sub-updates use isSyncing
         if (nodes.length === 0) setLoading(true);
         else setIsSyncing(true);
@@ -112,6 +127,25 @@ export function useGisTopology(currentUserId?: string | null) {
         }
 
         // Fetch area groups - this can be less frequent
+=======
+        setLoading(true);
+        const query = bounds || {
+          north: -6.1,
+          south: -6.4,
+          east: 106.9,
+          west: 106.7,
+        };
+        const response = await api.get<{
+          status: string;
+          data: { nodes: IGisNode[]; links: IGisLink[] };
+        }>("/gis/area", { params: query });
+        if (response.data.status === "success") {
+          setNodes(response.data.data.nodes);
+          setLinks(response.data.data.links);
+        }
+
+        // Fetch area groups
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
         const areasResponse = await api.get<{
           success: boolean;
           data: IAreaGroup[];
@@ -120,6 +154,7 @@ export function useGisTopology(currentUserId?: string | null) {
           setAreaGroups(areasResponse.data.data);
         }
 
+<<<<<<< HEAD
         // Fetch network standards - only if not loaded
         if (Object.keys(standards).length === 0) {
           const standardsResponse = await api.get<{
@@ -148,6 +183,24 @@ export function useGisTopology(currentUserId?: string | null) {
       }
     },
     [nodes.length, standards],
+=======
+        // Fetch network standards (Grouped by category)
+        const standardsResponse = await api.get<{
+          success: boolean;
+          data: Record<string, INetworkStandard[]>;
+        }>("/gis/config");
+        if (standardsResponse.data.success) {
+          setStandards(standardsResponse.data.data);
+        }
+      } catch (error) {
+        console.error("GIS Sync Error:", error);
+        toast.error("Gagal sinkronisasi data peta");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   );
 
   useEffect(() => {
@@ -184,6 +237,7 @@ export function useGisTopology(currentUserId?: string | null) {
                 String(e.userId).toLowerCase() !==
                   String(currentUserId).toLowerCase()
               ) {
+<<<<<<< HEAD
                 toast.info(`Update: ${node.type} diperbarui`);
               }
             } else if ((action as string) === "bulk_nodes_created") {
@@ -215,6 +269,9 @@ export function useGisTopology(currentUserId?: string | null) {
                     `${bulkData.count} Node baru ditambahkan (Refreshing...)`,
                   );
                 }
+=======
+                toast.info(`Update: ${node.type} #${node.id} diperbarui`);
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
               }
             } else if (action === "node_deleted") {
               const id = (data as { id: number }).id;
@@ -228,6 +285,7 @@ export function useGisTopology(currentUserId?: string | null) {
                 }
                 return [...prev, link];
               });
+<<<<<<< HEAD
 
               // Toast for links
               if (
@@ -268,6 +326,8 @@ export function useGisTopology(currentUserId?: string | null) {
                   );
                 }
               }
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
             } else if (action === "link_deleted") {
               const id = (data as { id: number }).id;
               setLinks((prev) => prev.filter((l) => l.id !== id));
@@ -318,7 +378,11 @@ export function useGisTopology(currentUserId?: string | null) {
         echo?.leaveChannel("infrastructure-gis");
       });
     };
+<<<<<<< HEAD
   }, [currentUserId, fetchData]);
+=======
+  }, [currentUserId]);
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 
   const handleAddNode = useCallback(async (nodeData: Omit<IGisNode, "id">) => {
     try {
@@ -328,24 +392,38 @@ export function useGisTopology(currentUserId?: string | null) {
       );
       if (response.data.status === "success") {
         toast.success(`${nodeData.type} berhasil disimpan`);
+<<<<<<< HEAD
         return response.data as unknown as IGisNode; // Assuming backend returns node in data or successful status
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
       }
     } catch {
       toast.error("Gagal menyimpan data node");
     }
+<<<<<<< HEAD
     return null;
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   }, []);
 
   const handleAddLink = useCallback(async (linkData: Omit<IGisLink, "id">) => {
     try {
+<<<<<<< HEAD
       if (linkData.path_geometry.length < 2) return null;
       const response = await api.post<{ status: string; data: IGisLink }>(
+=======
+      if (linkData.path_geometry.length < 2) return;
+      const response = await api.post<{ status: string }>(
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
         "/gis/links",
         linkData,
       );
       if (response.data.status === "success") {
         toast.success("Jalur kabel fiber berhasil dipetakan");
+<<<<<<< HEAD
         return response.data.data;
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
       }
     } catch (error) {
       const axiosError = error as {
@@ -355,7 +433,10 @@ export function useGisTopology(currentUserId?: string | null) {
         axiosError.response?.data?.message || "Gagal menyimpan jalur kabel";
       toast.error(message);
     }
+<<<<<<< HEAD
     return null;
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   }, []);
 
   const handleDeleteNode = useCallback(async (id: number) => {
@@ -524,6 +605,7 @@ export function useGisTopology(currentUserId?: string | null) {
     }
   };
 
+<<<<<<< HEAD
   const fetchOsmBuildings = async (polygonCoords: [number, number][]) => {
     try {
       setLoading(true);
@@ -729,12 +811,18 @@ export function useGisTopology(currentUserId?: string | null) {
     [nodes, standards],
   );
 
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   return {
     nodes,
     links,
     areaGroups,
+<<<<<<< HEAD
     loading: loading || isSyncing, // Maintain compatibility
     isSyncing, // New specific state
+=======
+    loading,
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
     fetchData,
     handleAddNode,
     handleAddLink,
@@ -747,10 +835,13 @@ export function useGisTopology(currentUserId?: string | null) {
     handleCreateAreaGroup,
     handleDeleteAreaGroup,
     handleUpdateAreaGroup,
+<<<<<<< HEAD
     handleBulkSaveNodes,
     handleBulkSaveLinks,
     fetchOsmBuildings,
     performSpatialAnalysis,
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
     standards,
   };
 }

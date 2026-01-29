@@ -25,7 +25,11 @@ interface NodeMarkerProps {
   isDrawing: boolean;
 }
 
+<<<<<<< HEAD
 export const GisNodeMarker = React.memo(function GisNodeMarker({
+=======
+export function GisNodeMarker({
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   node,
   show3D,
   canModify,
@@ -81,6 +85,7 @@ export const GisNodeMarker = React.memo(function GisNodeMarker({
     [],
   );
 
+<<<<<<< HEAD
   const issueMarkerIcon = useMemo(
     () =>
       L.divIcon({
@@ -96,6 +101,11 @@ export const GisNodeMarker = React.memo(function GisNodeMarker({
     if (node.type === "POLE") return poleMarkerIcon;
     if (node.type === "CUSTOMER") return customerMarkerIcon;
     if (node.type === "ISSUE") return issueMarkerIcon;
+=======
+  const getIcon = () => {
+    if (node.type === "POLE") return poleMarkerIcon;
+    if (node.type === "CUSTOMER") return customerMarkerIcon;
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
     return odpMarkerIcon;
   };
 
@@ -288,4 +298,8 @@ export const GisNodeMarker = React.memo(function GisNodeMarker({
       </Popup>
     </Marker>
   );
+<<<<<<< HEAD
 });
+=======
+}
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb

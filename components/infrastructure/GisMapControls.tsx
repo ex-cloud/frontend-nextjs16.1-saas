@@ -1,11 +1,22 @@
 import React, { useEffect, useCallback, useRef } from "react";
+<<<<<<< HEAD
 import { useMap, Polyline, Popup } from "react-leaflet";
+=======
+import { useMap } from "react-leaflet";
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 import * as turf from "@turf/turf";
 import L from "leaflet";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TowerControl as PoleIcon,
+<<<<<<< HEAD
   MousePointer2,
+=======
+  Network as OdpIcon,
+  Zap,
+  MousePointer2,
+  Users as UserIcon,
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   Move,
   Settings2,
   ChevronLeft,
@@ -13,10 +24,13 @@ import {
   GripHorizontal,
   MapPin,
   BoxSelect,
+<<<<<<< HEAD
   BrainCircuit,
   Network as OdpIcon,
   Zap,
   Users as UserIcon,
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +51,10 @@ import {
   IGisLink,
   IAreaGroup,
   INetworkStandard,
+<<<<<<< HEAD
   ISpatialAnalysisResult,
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 } from "@/types/infrastructure";
 import {
   Dialog,
@@ -46,7 +63,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+<<<<<<< HEAD
 import { GisAnalysisPanel } from "./GisAnalysisPanel";
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,9 +85,16 @@ interface MapWithGeoman {
   };
 }
 
+<<<<<<< HEAD
 const REGIONS = [
   { id: "bandung", name: "Bandung", lat: -6.9175, lng: 107.6191, zoom: 12 },
   { id: "jakarta", name: "Jakarta", lat: -6.2088, lng: 106.8456, zoom: 12 },
+=======
+// Predefined regions for quick navigation
+const REGIONS = [
+  { id: "jakarta", name: "Jakarta", lat: -6.2088, lng: 106.8456, zoom: 12 },
+  { id: "bandung", name: "Bandung", lat: -6.9175, lng: 107.6191, zoom: 12 },
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   { id: "surabaya", name: "Surabaya", lat: -7.2575, lng: 112.7521, zoom: 12 },
   { id: "semarang", name: "Semarang", lat: -6.9666, lng: 110.4196, zoom: 12 },
   { id: "medan", name: "Medan", lat: 3.5952, lng: 98.6722, zoom: 12 },
@@ -83,8 +110,13 @@ const REGIONS = [
 ];
 
 interface MapControlsProps {
+<<<<<<< HEAD
   onNodeAdded: (node: Omit<IGisNode, "id">) => Promise<IGisNode | null>;
   onLinkAdded: (link: Omit<IGisLink, "id">) => Promise<IGisLink | null>;
+=======
+  onNodeAdded: (node: Omit<IGisNode, "id">) => Promise<void>;
+  onLinkAdded: (link: Omit<IGisLink, "id">) => Promise<void>;
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   canModify: boolean;
   nodes: IGisNode[];
   activeMode: string | null;
@@ -94,6 +126,7 @@ interface MapControlsProps {
     data: Partial<IAreaGroup> & { node_ids: number[] },
   ) => Promise<IAreaGroup | null>;
   standards: Record<string, INetworkStandard[] | INetworkStandard>;
+<<<<<<< HEAD
   performSpatialAnalysis: (
     polygonCoords: [number, number][],
     customTargetNodes?: IGisNode[],
@@ -108,6 +141,8 @@ interface MapControlsProps {
   analysisPolygon?: [number, number][] | null;
   setAnalysisPolygon?: (polygon: [number, number][] | null) => void;
   handleBulkSaveLinks?: (links: Partial<IGisLink>[]) => Promise<IGisLink[]>;
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 }
 
 export function GisMapControls({
@@ -120,6 +155,7 @@ export function GisMapControls({
   onClearSelection,
   onCreateAreaGroup,
   standards,
+<<<<<<< HEAD
   performSpatialAnalysis,
   onAnalysisResults,
   fetchOsmBuildings,
@@ -132,6 +168,10 @@ export function GisMapControls({
 }: MapControlsProps) {
   const map = useMap();
 
+=======
+}: MapControlsProps) {
+  const map = useMap();
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   const containerRef = useRef<HTMLDivElement>(null);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [regionPopoverOpen, setRegionPopoverOpen] = React.useState(false);
@@ -144,6 +184,7 @@ export function GisMapControls({
     description: "",
     color: "#3B82F6",
   });
+<<<<<<< HEAD
   const [analysisPanelOpen, setAnalysisPanelOpen] = React.useState(false);
   const [currentAnalysis, setCurrentAnalysis] =
     React.useState<ISpatialAnalysisResult | null>(null);
@@ -171,6 +212,8 @@ export function GisMapControls({
       return () => clearTimeout(timeoutId);
     }
   }, [analysisPolygon, activeMode]);
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 
   // Disable map interactions when hovering over toolbar
   useEffect(() => {
@@ -324,6 +367,7 @@ export function GisMapControls({
         const latlngs = (polygonLayer.getLatLngs()[0] as L.LatLng[]).map(
           (l) => [l.lat, l.lng] as [number, number],
         );
+<<<<<<< HEAD
 
         if (activeMode === "analyzer") {
           setAnalysisPolygon?.(latlngs);
@@ -338,6 +382,10 @@ export function GisMapControls({
           setNewAreaBounds(latlngs);
           setAreaDialogPortalOpen(true);
         }
+=======
+        setNewAreaBounds(latlngs);
+        setAreaDialogPortalOpen(true);
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
         map.removeLayer(layer);
       }
 
@@ -359,10 +407,14 @@ export function GisMapControls({
     nodes,
     canModify,
     setActiveMode,
+<<<<<<< HEAD
     onAnalysisResults,
     performSpatialAnalysis,
     standards.odp,
     setAnalysisPolygon,
+=======
+    standards.odp,
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   ]);
 
   if (!canModify) return null;
@@ -388,6 +440,7 @@ export function GisMapControls({
     pm.enableDraw("Polygon", { snappable: true });
   };
 
+<<<<<<< HEAD
   const enableAnalyzer = () => {
     const pm = (map as unknown as MapWithGeoman).pm;
     if (!pm) return;
@@ -398,6 +451,8 @@ export function GisMapControls({
     setAnalysisPanelOpen(false);
   };
 
+=======
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   const clearModes = () => {
     setActiveMode(null);
     onClearSelection();
@@ -428,6 +483,7 @@ export function GisMapControls({
   };
 
   return (
+<<<<<<< HEAD
     <>
       <motion.div
         ref={containerRef}
@@ -814,5 +870,320 @@ export function GisMapControls({
         </Polyline>
       ))}
     </>
+=======
+    <motion.div
+      ref={containerRef}
+      drag
+      dragMomentum={false}
+      initial={{ x: 16, y: 16 }}
+      className="absolute z-[1000] flex flex-col p-2 bg-sidebar/95 backdrop-blur-2xl rounded-xl border border-sidebar-border/60 shadow-2xl cursor-default"
+      style={{ touchAction: "none" }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-1 py-1 border-b border-sidebar-border/40 mb-2">
+        <div className="flex items-center gap-2 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary transition-colors">
+          <GripHorizontal className="h-4 w-4" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-foreground/90">
+            GIS Tools
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5 hover:bg-sidebar-accent"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-3 w-3" />
+          ) : (
+            <ChevronLeft className="h-3 w-3" />
+          )}
+        </Button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {!isCollapsed && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex flex-col gap-1 overflow-hidden"
+          >
+            <TooltipProvider delayDuration={100}>
+              {/* Region Navigator - Icon button with popover */}
+              <Popover
+                open={regionPopoverOpen}
+                onOpenChange={setRegionPopoverOpen}
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="icon" className="h-9 w-9">
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Navigasi Area</TooltipContent>
+                </Tooltip>
+                <PopoverContent side="right" className="w-40 p-1">
+                  <div className="flex flex-col gap-0.5">
+                    {REGIONS.map((region) => (
+                      <Button
+                        key={region.id}
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start text-xs h-7"
+                        onClick={() => handleRegionChange(region.id)}
+                      >
+                        {region.name}
+                      </Button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Area Grouping - Drawing tool */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={activeMode === "area" ? "default" : "outline"}
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={enableDrawArea}
+                  >
+                    <BoxSelect className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  Buat Grup Area (Gambarkan Polygon)
+                </TooltipContent>
+              </Tooltip>
+
+              <div className="h-px bg-sidebar-border/40 my-1" />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={activeMode === null ? "default" : "outline"}
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={clearModes}
+                  >
+                    <MousePointer2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Mode Seleksi</TooltipContent>
+              </Tooltip>
+
+              <div className="h-px bg-sidebar-border/40 my-1" />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={activeMode === "pole" ? "default" : "outline"}
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={() => enableDrawMarker("pole")}
+                  >
+                    <PoleIcon className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Tambah Tiang</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={activeMode === "odp" ? "default" : "outline"}
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={() => enableDrawMarker("odp")}
+                  >
+                    <OdpIcon className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Tambah ODP</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={activeMode === "customer" ? "default" : "outline"}
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={() => enableDrawMarker("customer")}
+                  >
+                    <UserIcon className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  Tambah Lokasi Pelanggan
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={activeMode === "line" ? "default" : "outline"}
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={enableDrawLine}
+                  >
+                    <Zap className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  Tarik Kabel (Maks 100m)
+                </TooltipContent>
+              </Tooltip>
+
+              <div className="h-px bg-sidebar-border/40 my-1" />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={activeMode === "move" ? "default" : "outline"}
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={toggleDragMode}
+                  >
+                    <Move className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Mode Geser Aset</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={activeMode === "edit" ? "default" : "outline"}
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={toggleEditMode}
+                  >
+                    <Settings2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Mode Edit Geometri</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Area Group Save Dialog */}
+      <Dialog
+        open={areaDialogPortalOpen}
+        onOpenChange={setAreaDialogPortalOpen}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Buat Grup Area Baru</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right text-xs">
+                Nama
+              </Label>
+              <Input
+                id="name"
+                value={areaFormData.name}
+                onChange={(e) =>
+                  setAreaFormData({ ...areaFormData, name: e.target.value })
+                }
+                className="col-span-3 h-8 text-xs"
+                placeholder="Misal: Area Perumahan X"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right text-xs">
+                Deskripsi
+              </Label>
+              <Textarea
+                id="description"
+                value={areaFormData.description}
+                onChange={(e) =>
+                  setAreaFormData({
+                    ...areaFormData,
+                    description: e.target.value,
+                  })
+                }
+                className="col-span-3 h-20 text-xs"
+                placeholder="Detail area..."
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="color" className="text-right text-xs">
+                Warna
+              </Label>
+              <div className="col-span-3 flex items-center gap-2">
+                <Input
+                  id="color"
+                  type="color"
+                  value={areaFormData.color}
+                  onChange={(e) =>
+                    setAreaFormData({ ...areaFormData, color: e.target.value })
+                  }
+                  className="h-8 w-12 p-0 border-none bg-transparent"
+                />
+                <span className="text-[10px] text-muted-foreground uppercase">
+                  {areaFormData.color}
+                </span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAreaDialogPortalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              size="sm"
+              onClick={async () => {
+                if (!areaFormData.name) {
+                  toast.error("Nama area wajib diisi");
+                  return;
+                }
+
+                // Simple spatial check for nodes inside polygon
+                const polygon = turf.polygon([
+                  [
+                    ...newAreaBounds.map((b) => [b[1], b[0]]),
+                    [newAreaBounds[0][1], newAreaBounds[0][0]],
+                  ],
+                ]);
+
+                const nodeIds = nodes
+                  .filter((node) => {
+                    const pt = turf.point([node.lng, node.lat]);
+                    return turf.booleanPointInPolygon(pt, polygon);
+                  })
+                  .map((n) => n.id);
+
+                await onCreateAreaGroup({
+                  ...areaFormData,
+                  bounds: newAreaBounds,
+                  node_ids: nodeIds,
+                });
+
+                setAreaDialogPortalOpen(false);
+                setAreaFormData({
+                  name: "",
+                  description: "",
+                  color: "#3B82F6",
+                });
+                setNewAreaBounds([]);
+              }}
+            >
+              Simpan Area
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
+>>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   );
 }
