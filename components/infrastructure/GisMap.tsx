@@ -139,7 +139,6 @@ export default function GisMap() {
     handleAddNode,
     handleAddLink,
     handleDeleteNode,
-    handleUpdateNodePorts,
     handlePredictFailure,
     handleToggleMaintenance,
     handleSaveMetadata,
@@ -156,7 +155,7 @@ export default function GisMap() {
   // UI Toggle States
   const [showCoverage, setShowCoverage] = useState(false);
   const [showLinkBudget, setShowLinkBudget] = useState(false);
-  const [show3D, setShow3D] = useState(false);
+  const [show3D] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showAreas, setShowAreas] = useState(true);
   const [visibleLayers, setVisibleLayers] = useState<Set<NodeType>>(
@@ -726,7 +725,6 @@ export default function GisMap() {
                 node={node}
                 show3D={show3D}
                 canModify={canModify}
-                isRoutingMode={isRoutingMode}
                 routingPoints={routingPoints}
                 onDelete={handleDeleteNode}
                 onSelectForRouting={(n) =>
@@ -734,13 +732,9 @@ export default function GisMap() {
                     prev.length >= 2 ? [n] : [...prev, n],
                   )
                 }
-                onUpdatePorts={handleUpdateNodePorts}
                 onPredictFailure={handlePredictFailure}
                 onToggleMaintenance={handleToggleMaintenance}
                 onViewInternals={setInternalViewNode}
-                onSaveMetadata={(node, metadata) =>
-                  handleSaveMetadata(node, metadata, "node")
-                }
                 onMove={handleMoveNode}
                 isDrawing={!!activeMode}
               />
@@ -811,7 +805,6 @@ export default function GisMap() {
         selectedLink={selectedLink}
         showCoverage={showCoverage}
         showLinkBudget={showLinkBudget}
-        show3D={show3D}
         isRoutingMode={isRoutingMode}
         showHeatmap={showHeatmap}
         showAreas={showAreas}
@@ -821,7 +814,6 @@ export default function GisMap() {
         otdrFaultMarker={otdrFaultMarker}
         onToggleCoverage={() => setShowCoverage(!showCoverage)}
         onToggleLinkBudget={() => setShowLinkBudget(!showLinkBudget)}
-        onToggle3D={() => setShow3D(!show3D)}
         onToggleRouting={() => {
           setIsRoutingMode(!isRoutingMode);
           setRoutingPoints([]);

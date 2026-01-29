@@ -3,15 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Layers,
   Zap,
-  Box,
   Brain,
   ChevronDown,
   LayoutGrid,
   Route,
   Activity,
   X,
-  Settings2,
-  Info,
   Map as MapIcon,
   Search,
 } from "lucide-react";
@@ -27,7 +24,6 @@ interface OverlayPanelsProps {
   selectedLink: IGisLink | null;
   showCoverage: boolean;
   showLinkBudget: boolean;
-  show3D: boolean;
   isRoutingMode: boolean;
   showHeatmap: boolean;
   showAreas: boolean;
@@ -37,7 +33,6 @@ interface OverlayPanelsProps {
   otdrFaultMarker: [number, number] | null;
   onToggleCoverage: () => void;
   onToggleLinkBudget: () => void;
-  onToggle3D: () => void;
   onToggleRouting: () => void;
   onToggleHeatmap: () => void;
   onToggleAreas: () => void;
@@ -53,7 +48,6 @@ export function GisOverlayPanels({
   selectedLink,
   showCoverage,
   showLinkBudget,
-  show3D,
   isRoutingMode,
   showHeatmap,
   showAreas,
@@ -63,7 +57,6 @@ export function GisOverlayPanels({
   otdrFaultMarker,
   onToggleCoverage,
   onToggleLinkBudget,
-  onToggle3D,
   onToggleRouting,
   onToggleHeatmap,
   onToggleAreas,

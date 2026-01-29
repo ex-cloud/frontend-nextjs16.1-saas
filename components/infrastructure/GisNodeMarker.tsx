@@ -9,18 +9,12 @@ interface NodeMarkerProps {
   node: IGisNode;
   show3D: boolean;
   canModify: boolean;
-  isRoutingMode: boolean;
   routingPoints: IGisNode[];
   onDelete: (id: number) => void;
   onSelectForRouting: (node: IGisNode) => void;
-  onUpdatePorts: (node: IGisNode, newOccupied: number) => void;
   onPredictFailure: (id: number) => void;
   onToggleMaintenance: (node: IGisNode) => void;
   onViewInternals: (node: IGisNode) => void;
-  onSaveMetadata: (
-    node: IGisNode,
-    metadata: Record<string, unknown>,
-  ) => Promise<void>;
   onMove: (node: IGisNode, lat: number, lng: number) => Promise<void>;
   isDrawing: boolean;
 }
@@ -29,15 +23,12 @@ export const GisNodeMarker = React.memo(function GisNodeMarker({
   node,
   show3D,
   canModify,
-  isRoutingMode,
   routingPoints,
   onDelete,
   onSelectForRouting,
-  onUpdatePorts,
   onPredictFailure,
   onToggleMaintenance,
   onViewInternals,
-  onSaveMetadata,
   onMove,
   isDrawing,
 }: NodeMarkerProps) {
