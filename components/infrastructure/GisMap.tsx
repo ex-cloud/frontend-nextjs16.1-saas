@@ -358,7 +358,6 @@ export default function GisMap() {
             />
           </LayersControl.BaseLayer>
         </LayersControl>
-
         <GisMapControls
           onNodeAdded={handleAddNode}
           onLinkAdded={handleAddLink}
@@ -478,6 +477,7 @@ export default function GisMap() {
 
               setActiveMode("analyzer");
               setAnalysisPolygon(polygon);
+
               const results = performSpatialAnalysis(polygon);
               if (results?.suggestions?.length) {
                 setSuggestedOdpPoints(results.suggestions);
@@ -492,9 +492,7 @@ export default function GisMap() {
                 const results = await handleBulkSaveNodes(detectedHouses);
                 if (results && results.length > 0) {
                   setDetectedHouses([]);
-                  toast.success(
-                    `${results.length} rumah berhasil disimpan ke database!`,
-                  );
+                  toast.success(`${results.length} rumah berhasil disimpan!`);
                 }
               }
             }}
@@ -592,6 +590,7 @@ export default function GisMap() {
           </Polyline>
         )}
 
+        {/* Render Detected Houses (DRAFT) */}
         {useMemo(
           () => (
             <>
@@ -669,16 +668,13 @@ export default function GisMap() {
             })}
           >
             <Popup>
-              <div className="p-1">
+              <div className="p-1 text-center">
                 <h4 className="font-bold text-blue-600 text-xs text-center">
                   💡 AI Recommendation
                 </h4>
-                <p className="text-[10px] text-center mt-1">
-                  Optimal ODP placement based on customer clusters.
-                </p>
+                <p className="text-[10px] mt-1">Optimal placement for ODP.</p>
                 <Button
                   size="sm"
-                  variant="default"
                   className="w-full h-7 text-[10px] mt-2 bg-blue-600"
                   onClick={() => {
                     const odpStandards = (
@@ -702,12 +698,13 @@ export default function GisMap() {
                     );
                   }}
                 >
-                  Approve & Place ODP
+                  Place ODP
                 </Button>
               </div>
             </Popup>
           </Marker>
         ))}
+
         {nodes
           .filter((node) => visibleLayers.has(node.type))
           .map((node) => (
@@ -789,99 +786,63 @@ export default function GisMap() {
         )}
       </MapContainer>
 
-      {/* Floating UI Elements */}
-      <div className="absolute bottom-6 left-6 z-[1000] flex flex-col gap-2">
-        <div className="bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-2xl border border-white/50 flex flex-col gap-1">
-          <Button
-            variant={showAreas ? "default" : "ghost"}
-            size="icon"
-            className="w-10 h-10 rounded-xl"
-            onClick={() => setShowAreas(!showAreas)}
-            title="Toggle Area Boundaries"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="lucide lucide-area-chart"
-            >
-              <path d="M3 3v18h18" />
-              <path d="M7 12v5h10V8l-5 4-5-5Z" />
-            </svg>
-          </Button>
-          <Button
-            variant={showHeatmap ? "default" : "ghost"}
-            size="icon"
-            className="w-10 h-10 rounded-xl"
-            onClick={() => setShowHeatmap(!showHeatmap)}
-            title="Density Heatmap"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="lucide lucide-flame"
-            >
-              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-            </svg>
-          </Button>
+      {loading && !nodes.length && (
+        <div className="absolute inset-0 z-[2000] flex flex-col items-center justify-center bg-background/40 backdrop-blur-md">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="mt-4 text-sm font-bold animate-pulse">
+            Initializing GIS...
+          </p>
         </div>
-      </div>
+      )}
+
+      {isSyncing && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-sidebar/80 backdrop-blur-xl border border-sidebar-border rounded-full shadow-lg">
+            <div className="h-2 w-2 bg-primary rounded-full animate-pulse"></div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/80">
+              Synchronizing Area...
+            </span>
+          </div>
+        </div>
+      )}
 
       <GisOverlayPanels
-        loading={loading}
-        isSyncing={isSyncing}
+        nodes={nodes}
+        selectedLink={selectedLink}
         showCoverage={showCoverage}
-        setShowCoverage={setShowCoverage}
         showLinkBudget={showLinkBudget}
-        setShowLinkBudget={setShowLinkBudget}
         show3D={show3D}
-        setShow3D={setShow3D}
-        visibleLayers={visibleLayers}
-        toggleLayer={toggleLayer}
         isRoutingMode={isRoutingMode}
-        setIsRoutingMode={setIsRoutingMode}
+        showHeatmap={showHeatmap}
+        showAreas={showAreas}
+        visibleLayers={visibleLayers}
         routingPoints={routingPoints}
-        onClearRouting={() => {
+        otdrDistanceKm={otdrDistanceKm}
+        otdrFaultMarker={otdrFaultMarker}
+        onToggleCoverage={() => setShowCoverage(!showCoverage)}
+        onToggleLinkBudget={() => setShowLinkBudget(!showLinkBudget)}
+        onToggle3D={() => setShow3D(!show3D)}
+        onToggleRouting={() => {
+          setIsRoutingMode(!isRoutingMode);
           setRoutingPoints([]);
           setAutoRoute(null);
         }}
-        onAnalyzeRoute={findOptimalRoute}
-        selectedLink={selectedLink}
-        otdrDistanceKm={otdrDistanceKm}
-        setOtdrDistanceKm={setOtdrDistanceKm}
-        onFindFault={findFaultLocation}
-        activeMode={activeMode}
+        onToggleHeatmap={() => setShowHeatmap(!showHeatmap)}
+        onToggleAreas={() => setShowAreas(!showAreas)}
+        onToggleLayer={toggleLayer}
+        onFindOptimalRoute={findOptimalRoute}
+        onCloseOtdr={() => {
+          setSelectedLink(null);
+          setOtdrFaultMarker(null);
+        }}
+        onOtdrDistanceChange={setOtdrDistanceKm}
+        onFindFaultLocation={findFaultLocation}
       />
 
       <GisInternalWiringDialog
         node={internalViewNode}
         onClose={() => setInternalViewNode(null)}
       />
-
-      {/* Syncing Indicator */}
-      {isSyncing && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[2000] animate-in slide-in-from-top duration-300">
-          <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-2xl border border-blue-100 flex items-center gap-3">
-            <div className="size-2 bg-blue-500 rounded-full animate-ping" />
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">
-              Synchronizing Area...
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
