@@ -10,20 +10,14 @@ import {
   Popup,
   LayersControl,
   Polygon,
-<<<<<<< HEAD
   useMapEvents,
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 } from "react-leaflet";
 import { useSession } from "next-auth/react";
 import * as turf from "@turf/turf";
 import { toast } from "sonner";
 import L from "leaflet";
 import { Button } from "@/components/ui/button";
-<<<<<<< HEAD
 import { BrainCircuit } from "lucide-react";
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 
 // Leaflet CSS
 import "leaflet/dist/leaflet.css";
@@ -31,7 +25,6 @@ import "@geoman-io/leaflet-geoman-free";
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
 // Shared Types & Hooks
-<<<<<<< HEAD
 import {
   IGisNode,
   IGisLink,
@@ -39,9 +32,6 @@ import {
   INetworkStandard,
   ISpatialAnalysisResult,
 } from "@/types/infrastructure";
-=======
-import { IGisNode, IGisLink, NodeType } from "@/types/infrastructure";
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 import { useGisTopology } from "@/hooks/useGisTopology";
 
 // Modular Components
@@ -50,10 +40,7 @@ import { GisNodeMarker } from "./GisNodeMarker";
 import { GisLinkPolyline } from "./GisLinkPolyline";
 import { GisOverlayPanels } from "./GisOverlayPanels";
 import { GisInternalWiringDialog } from "./GisInternalWiringDialog";
-<<<<<<< HEAD
 import { GisContextMenu } from "./GisContextMenu";
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 
 // Fix Leaflet Icons
 // @ts-expect-error - Leaflet icon internal fix
@@ -78,7 +65,6 @@ interface UserSession {
   };
 }
 
-<<<<<<< HEAD
 // Helper component to handle map events
 function MapEvents({
   onContextMenu,
@@ -120,8 +106,6 @@ function MapEvents({
   return null;
 }
 
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
 export default function GisMap() {
   const { data: session } = useSession() as { data: UserSession | null };
   const userRoles = session?.user?.roles || [];
@@ -129,7 +113,6 @@ export default function GisMap() {
     ["Super Admin", "Admin", "Network Engineer"].includes(role),
   );
 
-<<<<<<< HEAD
   // Intelligence & Analysis States
   const [detectedHouses, setDetectedHouses] = useState<Partial<IGisNode>[]>([]);
   const [suggestedOdpPoints, setSuggestedOdpPoints] = useState<
@@ -145,19 +128,14 @@ export default function GisMap() {
     bounds?: [number, number][];
   }>({ latlng: [0, 0], visible: false });
 
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   // Core Topology Logic
   const {
     nodes,
     links,
     areaGroups,
     loading,
-<<<<<<< HEAD
     isSyncing,
     fetchData,
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
     handleAddNode,
     handleAddLink,
     handleDeleteNode,
@@ -168,13 +146,10 @@ export default function GisMap() {
     handleMoveNode,
     handleCreateAreaGroup,
     handleDeleteAreaGroup,
-<<<<<<< HEAD
     handleBulkSaveNodes,
     handleBulkSaveLinks,
     fetchOsmBuildings,
     performSpatialAnalysis,
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
     standards,
   } = useGisTopology(session?.user?.email);
 
@@ -185,11 +160,7 @@ export default function GisMap() {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showAreas, setShowAreas] = useState(true);
   const [visibleLayers, setVisibleLayers] = useState<Set<NodeType>>(
-<<<<<<< HEAD
     new Set(["POLE", "ODP", "CUSTOMER", "ISSUE"]),
-=======
-    new Set(["POLE", "ODP", "CUSTOMER"]),
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   );
   const [isRoutingMode, setIsRoutingMode] = useState(false);
   const [routingPoints, setRoutingPoints] = useState<IGisNode[]>([]);
@@ -210,7 +181,6 @@ export default function GisMap() {
 
   // --- Handlers ---
 
-<<<<<<< HEAD
   // Debounce fetchData to prevent spamming during map movement
   const fetchTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -231,8 +201,6 @@ export default function GisMap() {
     };
   }, []);
 
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
   const findFaultLocation = useCallback(() => {
     if (!selectedLink || !otdrDistanceKm) return;
     try {
@@ -331,7 +299,6 @@ export default function GisMap() {
   return (
     <div className="relative h-[750px] w-full bg-sidebar-muted group overflow-hidden rounded-xl border border-sidebar-border shadow-inner">
       <MapContainer
-<<<<<<< HEAD
         center={(() => {
           const saved = localStorage.getItem("gis_last_view");
           if (saved) {
@@ -370,14 +337,6 @@ export default function GisMap() {
             }}
             onBoundsChange={handleBoundsChange}
           />
-=======
-        center={[-6.2088, 106.8456]}
-        zoom={13}
-        style={{ height: "100%", width: "100%" }}
-        className="z-0"
-      >
-        <LayersControl position="bottomright">
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
           <LayersControl.BaseLayer checked name="OpenStreetMap (Street)">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -399,6 +358,7 @@ export default function GisMap() {
             />
           </LayersControl.BaseLayer>
         </LayersControl>
+
         <GisMapControls
           onNodeAdded={handleAddNode}
           onLinkAdded={handleAddLink}
@@ -415,7 +375,6 @@ export default function GisMap() {
           }}
           onCreateAreaGroup={handleCreateAreaGroup}
           standards={standards}
-<<<<<<< HEAD
           performSpatialAnalysis={performSpatialAnalysis}
           onAnalysisResults={(results: ISpatialAnalysisResult | null) => {
             if (results) {
@@ -502,15 +461,13 @@ export default function GisMap() {
               });
             }}
             onAnalyze={() => {
-              // Create a polygon from bounds or generate a small area around click point
               let polygon: [number, number][];
               if (contextMenu.bounds && contextMenu.bounds.length >= 3) {
                 polygon = contextMenu.bounds;
               } else {
-                // Generate a small polygon (approx 100m x 100m) around the click point
                 const lat = contextMenu.latlng[0];
                 const lng = contextMenu.latlng[1];
-                const offset = 0.0005; // ~50 meters
+                const offset = 0.0005;
                 polygon = [
                   [lat - offset, lng - offset],
                   [lat + offset, lng - offset],
@@ -521,8 +478,6 @@ export default function GisMap() {
 
               setActiveMode("analyzer");
               setAnalysisPolygon(polygon);
-
-              // Run spatial analysis immediately
               const results = performSpatialAnalysis(polygon);
               if (results?.suggestions?.length) {
                 setSuggestedOdpPoints(results.suggestions);
@@ -545,9 +500,7 @@ export default function GisMap() {
             }}
           />
         )}
-=======
-        />
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
+
         {showAreas &&
           areaGroups.map((group) =>
             group.bounds ? (
@@ -561,11 +514,9 @@ export default function GisMap() {
                   weight: 2,
                   dashArray: "5, 5",
                 }}
-<<<<<<< HEAD
                 eventHandlers={{
                   contextmenu: (e) => {
                     L.DomEvent.stopPropagation(e);
-                    // Prevent default browser context menu
                     if (e.originalEvent) {
                       e.originalEvent.preventDefault();
                     }
@@ -577,8 +528,6 @@ export default function GisMap() {
                     });
                   },
                 }}
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
               >
                 <Popup>
                   <div className="p-1">
@@ -594,7 +543,6 @@ export default function GisMap() {
                     <div className="mt-2 pt-2 border-t flex flex-col gap-1 text-[10px]">
                       <span>Nodes: {group.node_count}</span>
                       <Button
-<<<<<<< HEAD
                         variant="default"
                         size="sm"
                         className="h-6 text-[10px] mt-1 bg-blue-600 hover:bg-blue-700"
@@ -614,8 +562,6 @@ export default function GisMap() {
                         Smart Analyze Area
                       </Button>
                       <Button
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
                         variant="destructive"
                         size="sm"
                         className="h-6 text-[10px] mt-1"
@@ -645,8 +591,7 @@ export default function GisMap() {
             </Popup>
           </Polyline>
         )}
-<<<<<<< HEAD
-        {/* Render Detected Houses (DRAFT) - Wrapped in Fragment for better keying */}
+
         {useMemo(
           () => (
             <>
@@ -763,8 +708,6 @@ export default function GisMap() {
             </Popup>
           </Marker>
         ))}
-=======
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
         {nodes
           .filter((node) => visibleLayers.has(node.type))
           .map((node) => (
@@ -846,72 +789,99 @@ export default function GisMap() {
         )}
       </MapContainer>
 
-<<<<<<< HEAD
-      {loading && !nodes.length && (
-        <div className="absolute inset-0 z-[2000] flex flex-col items-center justify-center bg-background/40 backdrop-blur-md">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <div className="absolute inset-0 animate-pulse bg-primary/20 rounded-full"></div>
-          </div>
-          <p className="mt-4 text-sm font-bold animate-pulse">
-            Initializing GIS Topology...
-          </p>
+      {/* Floating UI Elements */}
+      <div className="absolute bottom-6 left-6 z-[1000] flex flex-col gap-2">
+        <div className="bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-2xl border border-white/50 flex flex-col gap-1">
+          <Button
+            variant={showAreas ? "default" : "ghost"}
+            size="icon"
+            className="w-10 h-10 rounded-xl"
+            onClick={() => setShowAreas(!showAreas)}
+            title="Toggle Area Boundaries"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-area-chart"
+            >
+              <path d="M3 3v18h18" />
+              <path d="M7 12v5h10V8l-5 4-5-5Z" />
+            </svg>
+          </Button>
+          <Button
+            variant={showHeatmap ? "default" : "ghost"}
+            size="icon"
+            className="w-10 h-10 rounded-xl"
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            title="Density Heatmap"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="lucide lucide-flame"
+            >
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+            </svg>
+          </Button>
         </div>
-      )}
-
-      {isSyncing && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] animate-in fade-in slide-in-from-top-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-sidebar/80 backdrop-blur-xl border border-sidebar-border rounded-full shadow-lg">
-            <div className="h-2 w-2 bg-primary rounded-full animate-pulse"></div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/80">
-              Refining Topology Area...
-            </span>
-          </div>
-=======
-      {loading && (
-        <div className="absolute inset-0 z-[2000] flex items-center justify-center bg-background/20 backdrop-blur-[2px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
-        </div>
-      )}
+      </div>
 
       <GisOverlayPanels
-        nodes={nodes}
-        selectedLink={selectedLink}
+        loading={loading}
+        isSyncing={isSyncing}
         showCoverage={showCoverage}
+        setShowCoverage={setShowCoverage}
         showLinkBudget={showLinkBudget}
+        setShowLinkBudget={setShowLinkBudget}
         show3D={show3D}
-        isRoutingMode={isRoutingMode}
-        showHeatmap={showHeatmap}
-        showAreas={showAreas}
+        setShow3D={setShow3D}
         visibleLayers={visibleLayers}
+        toggleLayer={toggleLayer}
+        isRoutingMode={isRoutingMode}
+        setIsRoutingMode={setIsRoutingMode}
         routingPoints={routingPoints}
-        otdrDistanceKm={otdrDistanceKm}
-        otdrFaultMarker={otdrFaultMarker}
-        onToggleCoverage={() => setShowCoverage(!showCoverage)}
-        onToggleLinkBudget={() => setShowLinkBudget(!showLinkBudget)}
-        onToggle3D={() => setShow3D(!show3D)}
-        onToggleRouting={() => {
-          setIsRoutingMode(!isRoutingMode);
+        onClearRouting={() => {
           setRoutingPoints([]);
           setAutoRoute(null);
         }}
-        onToggleHeatmap={() => setShowHeatmap(!showHeatmap)}
-        onToggleAreas={() => setShowAreas(!showAreas)}
-        onToggleLayer={toggleLayer}
-        onFindOptimalRoute={findOptimalRoute}
-        onCloseOtdr={() => {
-          setSelectedLink(null);
-          setOtdrFaultMarker(null);
-        }}
-        onOtdrDistanceChange={setOtdrDistanceKm}
-        onFindFaultLocation={findFaultLocation}
+        onAnalyzeRoute={findOptimalRoute}
+        selectedLink={selectedLink}
+        otdrDistanceKm={otdrDistanceKm}
+        setOtdrDistanceKm={setOtdrDistanceKm}
+        onFindFault={findFaultLocation}
+        activeMode={activeMode}
       />
 
       <GisInternalWiringDialog
         node={internalViewNode}
         onClose={() => setInternalViewNode(null)}
       />
+
+      {/* Syncing Indicator */}
+      {isSyncing && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[2000] animate-in slide-in-from-top duration-300">
+          <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-2xl border border-blue-100 flex items-center gap-3">
+            <div className="size-2 bg-blue-500 rounded-full animate-ping" />
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+              Synchronizing Area...
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -47,16 +47,12 @@ export default function CustomerNetworkPortal() {
     // Load data maintenance publik
     const loadPublicIssues = async () => {
       try {
-        // Panggil endpoint khusus publik yang sudah difilter di backend
+        // Panggil endpoint khusus publik (Bandung default area)
         const response = await api.get<{
           status: string;
           data: { nodes: IGisNode[] };
         }>("/gis/public/maintenance", {
-<<<<<<< HEAD
-          params: { north: -6.8, south: -7.1, east: 107.8, west: 107.4 },
-=======
-          params: { north: -6.1, south: -6.4, east: 106.9, west: 106.7 },
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
+          params: { north: -6.89, south: -6.92, east: 107.65, west: 107.6 },
         });
         if (response.data.status === "success") {
           setNodes(response.data.data.nodes);
@@ -198,11 +194,7 @@ export default function CustomerNetworkPortal() {
           </div>
 
           <MapContainer
-<<<<<<< HEAD
             center={[-6.9147, 107.6098]}
-=======
-            center={[-6.2088, 106.8456]}
->>>>>>> 13143cd8f7fc161a80670278aa4e334a49fe49eb
             zoom={13}
             style={{ height: "100%", width: "100%" }}
             className="z-0"
